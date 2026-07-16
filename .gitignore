@@ -1,0 +1,29 @@
+# Binaries
+*.exe
+*.test
+*.out
+vulnscan
+
+# Reports
+report_*.json
+report_*.pdf
+
+# Database
+history.db
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+/dist/
+/release/

