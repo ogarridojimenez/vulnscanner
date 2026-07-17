@@ -43,5 +43,12 @@
 - [x] Detalle de escaneo (`/scan/:id`)
 - [x] Assets embebidos (embed.FS, sin CGO)
 
+## Fase 8: UI Authentication ✅
+- [x] Flag `--ui-password` para proteger panel
+- [x] Login page + cookie de sesión HttpOnly
+- [x] Middleware `requireAuth` (redirige a /login)
+- [x] Logout invalida sesión
+- [x] Sin password = modo abierto (retrocompatible)
+
 ## Estado final
 **TODAS LAS FASES COMPLETAS** — VulnScanner es production-ready.

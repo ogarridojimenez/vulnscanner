@@ -14,12 +14,16 @@ var serveCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		addr, _ := cmd.Flags().GetString("addr")
 		dbPath, _ := cmd.Flags().GetString("db")
+		uiPass, _ := cmd.Flags().GetString("ui-password")
 		store := storage.NewSQLiteStore(dbPath)
 		if err := store.Init(); err != nil {
 			return fmt.Errorf("storage init: %w", err)
 		}
 		defer store.Close()
-		srv := server.New(store)
+		srv := server.New(store, uiPass)
+		if uiPass != "" {
+			fmt.Println("UI auth enabled (password protected)")
+		}
 		fmt.Printf("VulnScanner API listening on %s\n", addr)
 		return srv.Run(addr)
 	},
@@ -28,5 +32,6 @@ var serveCmd = &cobra.Command{
 func init() {
 	serveCmd.Flags().String("addr", ":8080", "listen address for API server")
 	serveCmd.Flags().String("db", "vulnscanner.db", "SQLite database path")
+	serveCmd.Flags().String("ui-password", "", "password to protect the web UI (empty = open)")
 	rootCmd.AddCommand(serveCmd)
 }

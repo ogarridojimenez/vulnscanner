@@ -29,16 +29,18 @@ type ScanRequest struct {
 type Server struct {
 	engine *gin.Engine
 	store  *storage.SQLiteStore
+	auth   *uiAuth
 	mu     sync.Mutex
 	scans  map[string]*models.ScanReport
 }
 
-// New creates the API server.
-func New(store *storage.SQLiteStore) *Server {
+// New creates the API server. If uiPassword is non-empty, the web UI is protected.
+func New(store *storage.SQLiteStore, uiPassword string) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
 		engine: gin.New(),
 		store:  store,
+		auth:   newUIAuth(uiPassword),
 		scans:  make(map[string]*models.ScanReport),
 	}
 	s.engine.Use(gin.Recovery())
@@ -54,11 +56,20 @@ func (s *Server) registerRoutes() {
 	s.engine.GET("/api/scans", s.handleList)
 	s.engine.GET("/api/scans/:id", s.handleGet)
 
-	// Web UI (Feature 008)
-	s.engine.GET("/", s.serveLanding)
-	s.engine.GET("/dashboard", s.serveApp)
-	s.engine.GET("/scan/new", s.serveApp)
-	s.engine.GET("/scan/:id", s.serveApp)
+	// Auth (Feature 009)
+	s.engine.GET("/login", s.auth.loginPage)
+	s.engine.POST("/login", s.auth.handleLogin)
+	s.engine.GET("/logout", s.auth.handleLogout)
+
+	// Web UI (Feature 008) — protected by requireAuth
+	ui := s.engine.Group("/")
+	ui.Use(s.auth.requireAuth)
+	{
+		ui.GET("/", s.serveLanding)
+		ui.GET("/dashboard", s.serveApp)
+		ui.GET("/scan/new", s.serveApp)
+		ui.GET("/scan/:id", s.serveApp)
+	}
 }
 
 func (s *Server) serveLanding(c *gin.Context) {

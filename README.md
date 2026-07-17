@@ -50,8 +50,10 @@ vulnscan scan example.com --config config.yaml
 vulnscan scan example.com --targets-file targets.txt --modules headers,ssrf
 
 # Servidor API (Producer-ready)
-vulnscan serve --addr :8080 --db scans.db
-# Endpoints: GET /health, POST /api/scan, GET /api/scans, GET /api/scans/:id
+vulnscan serve --addr :8080 --db scans.db --ui-password "mi_clave_secreta"
+```
+> El panel web (`/`, `/dashboard`, `/scan/new`, `/scan/:id`) queda protegido con
+> login por contraseña. La API REST (`/api/*`) permanece abierta por diseño.
 
 # Gestión de base de datos
 vulnscan db init

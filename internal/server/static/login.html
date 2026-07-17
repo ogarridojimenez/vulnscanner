@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScanner — Login</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --accent:#2ea043; --text:#e6edf3; --muted:#8b949e; --border:#30363d; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; height:100vh; }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:32px; width:340px; }
+  .logo { text-align:center; font-size:22px; font-weight:700; color:var(--accent); margin-bottom:20px; }
+  label { display:block; color:var(--muted); font-size:13px; margin:12px 0 4px; }
+  input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:14px; }
+  .btn { width:100%; background:var(--accent); color:#fff; padding:10px; border:none; border-radius:6px; font-weight:600; cursor:pointer; margin-top:18px; }
+  .btn:hover { opacity:.9; }
+  a { color:#388bfd; text-decoration:none; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">🔍 VulnScanner</div>
+    <form method="POST" action="/login">
+      <label>Contraseña de acceso</label>
+      <input type="password" name="password" placeholder="••••••••" required autofocus>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+    <p style="color:var(--muted);font-size:12px;text-align:center;margin-top:14px;">
+      Panel protegido. Solo personal autorizado.
+    </p>
+  </div>
+</body>
+</html>
