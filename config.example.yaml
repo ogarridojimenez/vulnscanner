@@ -1,0 +1,8 @@
+workers: 5
+timeout: 10s
+rate_limit: 2.0
+output_format: json
+modules:
+  - ssrf
+  - cookies
+  - tech

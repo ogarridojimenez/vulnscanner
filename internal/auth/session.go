@@ -13,11 +13,11 @@ import (
 
 // Session holds authenticated session state
 type Session struct {
-	Cookies    []*http.Cookie
-	Token      string
-	Headers    map[string]string
-	ExpiresAt  time.Time
-	BaseURL    string
+	Cookies   []*http.Cookie
+	Token     string
+	Headers   map[string]string
+	ExpiresAt time.Time
+	BaseURL   string
 }
 
 // Config defines login parameters

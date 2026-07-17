@@ -37,7 +37,7 @@ type FileConfig struct {
 }
 
 type PortScanConfig struct {
-	Enabled bool `yaml:"enabled" toml:"enabled"`
+	Enabled bool  `yaml:"enabled" toml:"enabled"`
 	Ports   []int `yaml:"ports" toml:"ports"`
 }
 

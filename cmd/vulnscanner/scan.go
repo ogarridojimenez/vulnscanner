@@ -9,11 +9,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/ogarridojimenez/vulnscanner/internal/auth"
+	"github.com/ogarridojimenez/vulnscanner/internal/config"
 	"github.com/ogarridojimenez/vulnscanner/internal/models"
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
 	"github.com/ogarridojimenez/vulnscanner/internal/scanner"
 	"github.com/ogarridojimenez/vulnscanner/internal/storage"
-	"github.com/ogarridojimenez/vulnscanner/internal/auth"
 )
 
 var scanCmd = &cobra.Command{
@@ -30,6 +31,17 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 		cfg.Target = target
+
+		// Load config file if provided (Feature 004)
+		configFile, _ := cmd.Flags().GetString("config")
+		if configFile != "" {
+			fc, err := config.LoadFromFile(configFile)
+			if err != nil {
+				return fmt.Errorf("config load failed: %w", err)
+			}
+			cfg.ApplyFromFile(fc)
+			color.Yellow("Loaded config: %s", configFile)
+		}
 
 		// Parse ports if provided
 		portsStr, _ := cmd.Flags().GetString("ports")
@@ -273,6 +285,8 @@ func init() {
 	scanCmd.Flags().String("auth-user", "", "username for authenticated scans")
 	scanCmd.Flags().String("auth-pass", "", "password for authenticated scans")
 	scanCmd.Flags().String("auth-token-field", "", "JSON field name for auth token in login response")
+	// Config file (Feature 004)
+	scanCmd.Flags().String("config", "", "path to YAML/TOML config file")
 }
 
 // sanitizeFilename replaces characters unsafe for filenames

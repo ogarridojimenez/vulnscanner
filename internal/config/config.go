@@ -19,18 +19,18 @@ type Config struct {
 	Modules      []string
 
 	// Extended config (from file)
-	RateLimit   float64     // requests per second per host (0 = unlimited)
-	Proxy       string      // e.g. http://127.0.0.1:8080
+	RateLimit    float64     // requests per second per host (0 = unlimited)
+	Proxy        string      // e.g. http://127.0.0.1:8080
 	ModuleConfig *FileConfig // raw file config for module access
 
 	// Auth (Feature 003)
-	AuthLoginURL  string
-	AuthUser      string
-	AuthPass      string
+	AuthLoginURL   string
+	AuthUser       string
+	AuthPass       string
 	AuthTokenField string
-	AuthUserField string
-	AuthPassField string
-	authSession   interface{} // *auth.Session when authenticated
+	AuthUserField  string
+	AuthPassField  string
+	authSession    interface{} // *auth.Session when authenticated
 }
 
 // SetAuthSession stores an authenticated session (Feature 003)

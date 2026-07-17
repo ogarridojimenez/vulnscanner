@@ -41,12 +41,18 @@ func New(cfg *config.Config) *Scanner {
 			tr.Proxy = http.ProxyURL(p)
 		}
 	}
+	// Compose transport chain: proxy(tr) -> rateLimit -> auth
+	var transport http.RoundTripper = tr
+	if cfg.RateLimit > 0 {
+		transport = wrapWithRateLimit(tr, cfg.RateLimit)
+	}
 	// Apply authenticated session if present (Feature 003)
 	if sess := cfg.GetAuthSession(); sess != nil {
 		if authSess, ok := sess.(*auth.Session); ok {
-			client.Transport = &authTransport{Base: tr, session: authSess}
+			transport = &authTransport{Base: transport, session: authSess}
 		}
 	}
+	client.Transport = transport
 	return &Scanner{
 		Config:  cfg,
 		client:  client,

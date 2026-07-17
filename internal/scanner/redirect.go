@@ -47,8 +47,8 @@ func detectRedirect(baseURL string, client *http.Client, timeout time.Duration, 
 			probeClient = newHTTPClient(timeout)
 		} else {
 			probeClient = &http.Client{
-				Timeout:       probeClient.Timeout,
-				Transport:     probeClient.Transport,
+				Timeout:   probeClient.Timeout,
+				Transport: probeClient.Transport,
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse // capture redirect, don't follow
 				},
