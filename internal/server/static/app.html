@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScanner — Dashboard</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --accent:#2ea043; --text:#e6edf3; --muted:#8b949e; --border:#30363d; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+  .container { max-width:1100px; margin:0 auto; padding:0 20px; }
+  header { border-bottom:1px solid var(--border); padding:16px 0; }
+  .logo { font-size:20px; font-weight:700; color:var(--accent); }
+  nav a { color:var(--text); text-decoration:none; margin-left:16px; }
+  nav a:hover { color:var(--accent); }
+  .topbar { display:flex; justify-content:space-between; align-items:center; }
+  h1 { font-size:28px; margin:24px 0 16px; }
+  .btn { background:var(--accent); color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:600; border:none; cursor:pointer; }
+  .btn:hover { opacity:.9; }
+  table { width:100%; border-collapse:collapse; margin-top:16px; }
+  th,td { text-align:left; padding:12px; border-bottom:1px solid var(--border); font-size:14px; }
+  th { color:var(--muted); }
+  .status { padding:3px 10px; border-radius:4px; font-size:12px; font-weight:600; }
+  .status-completed { background:var(--accent); color:#fff; }
+  .status-queued { background:#d29922; color:#000; }
+  a.link { color:#388bfd; text-decoration:none; }
+  a.link:hover { text-decoration:underline; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-top:20px; }
+  label { display:block; color:var(--muted); font-size:13px; margin:12px 0 4px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-size:14px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .finding { border-left:3px solid var(--border); padding:10px 14px; margin:10px 0; background:var(--bg); border-radius:0 6px 6px 0; }
+  .sev-crit { border-color:#da3633; } .sev-high { border-color:#f85149; }
+  .sev-med { border-color:#d29922; } .sev-info { border-color:#388bfd; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="container topbar">
+    <div class="logo">🔍 VulnScanner</div>
+    <nav>
+      <a href="/">Inicio</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/scan/new">Nuevo</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="topbar" style="margin-top:20px;">
+      <h1>Dashboard de Escaneos</h1>
+      <a href="/scan/new" class="btn">+ Nuevo Escaneo</a>
+    </div>
+    <div id="scans-list"></div>
+  </div>
+
+  <!-- NEW SCAN -->
+  <div id="scan-new" class="hidden">
+    <h1>Nuevo Escaneo</h1>
+    <div class="card">
+      <form id="scan-form">
+        <label>Target (URL o host)</label>
+        <input id="target" placeholder="https://example.com" required>
+        <div class="grid2">
+          <div>
+            <label>Workers</label>
+            <input id="workers" type="number" value="10" min="1" max="50">
+          </div>
+          <div>
+            <label>Timeout (seg)</label>
+            <input id="timeout" type="number" value="5" min="1" max="60">
+          </div>
+        </div>
+        <label>Módulos (deja vacío para todos)</label>
+        <input id="modules" placeholder="ssrf,lfi,redirect,cookies,tech,subdomain">
+        <div class="grid2">
+          <div>
+            <label>Usuario auth (opcional)</label>
+            <input id="auth-user" placeholder="admin">
+          </div>
+          <div>
+            <label>Password auth (opcional)</label>
+            <input id="auth-pass" type="password" placeholder="secret">
+          </div>
+        </div>
+        <label>Login URL (si auth)</label>
+        <input id="auth-url" placeholder="https://app.com/login">
+        <button type="submit" class="btn" style="margin-top:18px;">▶ Lanzar Escaneo</button>
+      </form>
+      <div id="msg" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="scan-detail" class="hidden">
+    <h1 id="detail-title">Detalle</h1>
+    <div id="detail-body"></div>
+    <a href="/dashboard" class="link">← Volver al dashboard</a>
+  </div>
+</div>
+
+<script>
+const pages = ['dashboard','scan-new','scan-detail'];
+function show(id){ pages.forEach(p=>document.getElementById(p).classList.toggle('hidden', p!==id)); }
+
+async function loadScans(){
+  const r = await fetch('/api/scans');
+  const data = await r.json();
+  const el = document.getElementById('scans-list');
+  if(!data.scans.length){ el.innerHTML='<p style="color:var(--muted)">No hay escaneos aún.</p>'; return; }
+  let rows = data.scans.map(s=>`
+    <tr>
+      <td><a class="link" href="/scan/${s.id}">${s.id}</a></td>
+      <td>${s.target}</td>
+      <td>${s.findings}</td>
+      <td><span class="status status-${s.status}">${s.status}</span></td>
+    </tr>`).join('');
+  el.innerHTML = `<table><tr><th>ID</th><th>Target</th><th>Findings</th><th>Estado</th></tr>${rows}</table>`;
+}
+
+document.getElementById('scan-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const modules = document.getElementById('modules').value.split(',').map(m=>m.trim()).filter(Boolean);
+  const body = {
+    target: document.getElementById('target').value,
+    workers: parseInt(document.getElementById('workers').value),
+    timeout: document.getElementById('timeout').value + 's',
+    modules,
+    auth_user: document.getElementById('auth-user').value,
+    auth_pass: document.getElementById('auth-pass').value,
+  };
+  const authUrl = document.getElementById('auth-url').value;
+  // login url not in API schema; ignore for now
+  const r = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const data = await r.json();
+  document.getElementById('msg').innerHTML = `<span style="color:var(--accent)">✅ Escaneo encolado: ${data.scan_id}</span>`;
+  setTimeout(()=>{ show('dashboard'); loadScans(); }, 1500);
+});
+
+async function loadDetail(id){
+  const r = await fetch('/api/scans/'+id);
+  if(!r.ok){ document.getElementById('detail-body').innerHTML='<p>No encontrado</p>'; return; }
+  const rep = await r.json();
+  document.getElementById('detail-title').textContent = 'Escaneo: ' + rep.Target;
+  const findings = rep.Results.map(rs=>`
+    <div class="finding sev-${rs.Severity.toLowerCase()}">
+      <strong>[${rs.Severity}]</strong> ${rs.Name}<br>
+      <span style="color:var(--muted);font-size:13px">${rs.Description||''}</span>
+    </div>`).join('') || '<p>Sin hallazgos.</p>';
+  document.getElementById('detail-body').innerHTML = findings;
+}
+
+// Router simple
+const path = location.pathname;
+if(path === '/' || path === '/dashboard'){ show('dashboard'); loadScans(); }
+else if(path === '/scan/new'){ show('scan-new'); }
+else if(path.startsWith('/scan/')){ show('scan-detail'); loadDetail(path.split('/')[2]); }
+else { show('dashboard'); loadScans(); }
+</script>
+</body>
+</html>

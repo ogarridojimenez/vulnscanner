@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScanner — Escáner de Vulnerabilidades Web</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --accent:#2ea043; --text:#e6edf3; --muted:#8b949e; --border:#30363d; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+  .container { max-width:1100px; margin:0 auto; padding:0 20px; }
+  header { border-bottom:1px solid var(--border); padding:20px 0; display:flex; justify-content:space-between; align-items:center; }
+  .logo { font-size:24px; font-weight:700; color:var(--accent); }
+  nav a { color:var(--text); text-decoration:none; margin-left:20px; }
+  nav a:hover { color:var(--accent); }
+  .hero { text-align:center; padding:60px 0; }
+  .hero h1 { font-size:48px; margin-bottom:20px; }
+  .hero p { color:var(--muted); font-size:18px; max-width:700px; margin:0 auto 30px; }
+  .btn { display:inline-block; background:var(--accent); color:#fff; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:600; }
+  .btn:hover { opacity:.9; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; padding:40px 0; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:24px; }
+  .card h3 { color:var(--accent); margin-bottom:10px; }
+  .card p { color:var(--muted); font-size:14px; }
+  .modules { padding:40px 0; }
+  .modules h2 { margin-bottom:20px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:10px; border-bottom:1px solid var(--border); font-size:14px; }
+  th { color:var(--muted); }
+  .sev { padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; }
+  .sev-crit { background:#da3633; color:#fff; }
+  .sev-high { background:#f85149; color:#fff; }
+  .sev-med { background:#d29922; color:#000; }
+  .sev-info { background:#388bfd; color:#fff; }
+  footer { border-top:1px solid var(--border); padding:30px 0; text-align:center; color:var(--muted); font-size:14px; }
+  code { background:var(--border); padding:2px 6px; border-radius:4px; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="container" style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="logo">🔍 VulnScanner</div>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/scan/new">Nuevo Escaneo</a>
+      <a href="/api/scans">API</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h1>Escanea vulnerabilidades web en segundos</h1>
+    <p>VulnScanner es una herramienta CLI + API construida en Go que audita targets
+       web en busca de vulnerabilidades comunes: puertos abiertos, cabeceras faltantes,
+       SQLi, XSS, SSRF, LFI, y más. Un solo binario, sin dependencias externas.</p>
+    <a href="/scan/new" class="btn">▶ Iniciar escaneo</a>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <h3>⚡ Rápido y concurrente</h3>
+      <p>Worker pool con goroutines reales. Escanea múltiples módulos en paralelo
+         con límite de rate configurable.</p>
+    </div>
+    <div class="card">
+      <h3>🛡️ 12 módulos de detección</h3>
+      <p>Desde port scan hasta SSRF y subdomain enum. Cobertura OWASP básica
+         lista para usar.</p>
+    </div>
+    <div class="card">
+      <h3>🔐 Escaneo autenticado</h3>
+      <p>Login automático por formulario o token JSON. La sesión se inyecta
+         en todas las peticiones del escaneo.</p>
+    </div>
+    <div class="card">
+      <h3>📊 Reportes múltiples</h3>
+      <p>JSON, PDF, HTML, SARIF (GitHub Security) y Markdown. Elige el formato
+         según tu pipeline.</p>
+    </div>
+    <div class="card">
+      <h3>🌐 API REST + UI</h3>
+      <p>Integra en CI/CD vía API Gin o usa esta interfaz web embebida
+         en el mismo binario.</p>
+    </div>
+    <div class="card">
+      <h3>📦 Sin CGO</h3>
+      <p>Binario 100% portable, compilable para linux/darwin/windows en
+         amd64/arm64. SQLite embebido sin CGO.</p>
+    </div>
+  </div>
+
+  <div class="modules">
+    <h2>Módulos disponibles</h2>
+    <table>
+      <tr><th>Módulo</th><th>Detecta</th><th>Severidad</th></tr>
+      <tr><td>Port Scan</td><td>Puertos abiertos + servicios</td><td><span class="sev sev-info">INFO</span></td></tr>
+      <tr><td>Security Headers</td><td>12 cabeceras OWASP</td><td><span class="sev sev-med">MEDIUM</span></td></tr>
+      <tr><td>TLS Check</td><td>Versión, caducidad, cadena</td><td><span class="sev sev-high">HIGH</span></td></tr>
+      <tr><td>Directory Fuzzing</td><td>Directorios/archivos ocultos</td><td><span class="sev sev-info">INFO</span></td></tr>
+      <tr><td>SQLi Detection</td><td>Inyección SQL por reflexión</td><td><span class="sev sev-high">HIGH</span></td></tr>
+      <tr><td>XSS Detection</td><td>Cross-site scripting</td><td><span class="sev sev-high">HIGH</span></td></tr>
+      <tr><td>SSRF Detection</td><td>Server-Side Request Forgery</td><td><span class="sev sev-crit">CRITICAL</span></td></tr>
+      <tr><td>LFI/RFI</td><td>Local/Remote File Inclusion</td><td><span class="sev sev-high">HIGH</span></td></tr>
+      <tr><td>Open Redirect</td><td>Redirecciones externas</td><td><span class="sev sev-med">MEDIUM</span></td></tr>
+      <tr><td>Cookie Audit</td><td>Flags Secure/HttpOnly/SameSite</td><td><span class="sev sev-med">MEDIUM</span></td></tr>
+      <tr><td>Tech Detection</td><td>Tecnologías (Wappalyzer-like)</td><td><span class="sev sev-info">INFO</span></td></tr>
+      <tr><td>Subdomain Enum</td><td>Subdominios por DNS</td><td><span class="sev sev-info">INFO</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="margin:30px 0;">
+    <h3>🚀 Uso rápido (CLI)</h3>
+    <p style="margin-top:10px;">
+      <code>vulnscan scan example.com --full</code><br><br>
+      <code>vulnscan scan example.com --modules ssrf,lfi,redirect --workers 15</code><br><br>
+      <code>vulnscan scan example.com --auth-login-url URL -u user -p pass --format sarif</code><br><br>
+      <code>vulnscan serve --addr :8080</code> → levanta esta UI + API
+    </p>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    VulnScanner — desarrollado con Spec-Driven Development (SDD) · MIT License<br>
+    ⚠️ Úsalo solo en sistemas propios o con autorización explícita.
+  </div>
+</footer>
+</body>
+</html>

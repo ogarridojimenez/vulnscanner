@@ -53,6 +53,30 @@ func (s *Server) registerRoutes() {
 	s.engine.POST("/api/scan", s.handleScan)
 	s.engine.GET("/api/scans", s.handleList)
 	s.engine.GET("/api/scans/:id", s.handleGet)
+
+	// Web UI (Feature 008)
+	s.engine.GET("/", s.serveLanding)
+	s.engine.GET("/dashboard", s.serveApp)
+	s.engine.GET("/scan/new", s.serveApp)
+	s.engine.GET("/scan/:id", s.serveApp)
+}
+
+func (s *Server) serveLanding(c *gin.Context) {
+	data, err := assets.ReadFile("static/landing.html")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "asset not found")
+		return
+	}
+	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+}
+
+func (s *Server) serveApp(c *gin.Context) {
+	data, err := assets.ReadFile("static/app.html")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "asset not found")
+		return
+	}
+	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 }
 
 func (s *Server) handleScan(c *gin.Context) {

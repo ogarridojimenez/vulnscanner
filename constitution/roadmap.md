@@ -36,5 +36,12 @@
 - [x] Fuzzing (payloads)
 - [x] CI: vet + fmt + coverage + fuzz
 
+## Fase 7: Web UI ✅
+- [x] Landing page explicativa (`/`)
+- [x] Dashboard de escaneos (`/dashboard`)
+- [x] Formulario nuevo escaneo (`/scan/new`)
+- [x] Detalle de escaneo (`/scan/:id`)
+- [x] Assets embebidos (embed.FS, sin CGO)
+
 ## Estado final
 **TODAS LAS FASES COMPLETAS** — VulnScanner es production-ready.

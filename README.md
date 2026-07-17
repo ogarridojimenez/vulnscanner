@@ -94,11 +94,16 @@ vulnscan db check
 ## Servidor API (Producer-ready)
 
 `vulnscan serve` levanta un servidor Gin con:
+- `GET /` — **Landing page** (explicación de la app)
+- `GET /dashboard` — listado de escaneos (UI web)
+- `GET /scan/new` — formulario de nuevo escaneo (UI web)
+- `GET /scan/:id` — detalle de un escaneo (UI web)
 - `GET /health` — healthcheck
 - `POST /api/scan` — encola escaneo async (body: `{"target","modules","workers","format"}`)
 - `GET /api/scans` — lista de escaneos completados
 - `GET /api/scans/:id` — detalle de un escaneo
 
+La UI web está embebida en el binario (sin assets externos).
 Notificaciones (Slack/Discord webhook) configurables en scheduler.
 
 ## Arquitectura
