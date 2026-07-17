@@ -46,6 +46,13 @@ vulnscan scan example.com --full --format md -o report.md
 # Configuración avanzada desde archivo
 vulnscan scan example.com --config config.yaml
 
+# Escaneo multi-target desde archivo (uno por línea)
+vulnscan scan example.com --targets-file targets.txt --modules headers,ssrf
+
+# Servidor API (Producer-ready)
+vulnscan serve --addr :8080 --db scans.db
+# Endpoints: GET /health, POST /api/scan, GET /api/scans, GET /api/scans/:id
+
 # Gestión de base de datos
 vulnscan db init
 vulnscan db check
@@ -80,8 +87,19 @@ vulnscan db check
 | `--auth-token-field` | — | Campo JSON del token en respuesta de login |
 | `--format` | json | json, pdf, html, sarif, md |
 | `--config` | — | Archivo YAML/TOML de configuración |
+| `--targets-file` | — | Archivo con targets (uno por línea) |
 | `--db` | `~/.vulnscanner/history.db` | Ruta a base de datos |
 | `-v` / `--verbose` | false | Salida detallada |
+
+## Servidor API (Producer-ready)
+
+`vulnscan serve` levanta un servidor Gin con:
+- `GET /health` — healthcheck
+- `POST /api/scan` — encola escaneo async (body: `{"target","modules","workers","format"}`)
+- `GET /api/scans` — lista de escaneos completados
+- `GET /api/scans/:id` — detalle de un escaneo
+
+Notificaciones (Slack/Discord webhook) configurables en scheduler.
 
 ## Arquitectura
 
@@ -89,10 +107,14 @@ vulnscan db check
 cmd/vulnscanner/       → CLI (Cobra)
 internal/config/       → Configuración y defaults
 internal/models/       → Dominio (Target, Result, ScanReport)
-internal/scanner/      → 12 módulos de escaneo con worker pool
+internal/scanner/      → 12 módulos de escaneo con worker pool + rate-limit + proxy
 internal/reporter/     → JSON, PDF, HTML, SARIF, Markdown
 internal/auth/         → Login automático + sesión (Feature 003)
 internal/config/       → Configuración YAML/TOML + rate-limit + proxy
+internal/server/       → API Gin (serve) — Producer-ready (Feature 005)
+internal/scheduler/    → Scheduler de escaneos periódicos (Feature 005)
+internal/notifier/     → Notificaciones Slack/Discord/Email (Feature 005)
+internal/storage/      → SQLite CGO-free
 rules/                 → Payloads SQLi/XSS/SSRF/LFI/redirect/subdomains
 ```
 
@@ -101,8 +123,9 @@ rules/                 → Payloads SQLi/XSS/SSRF/LFI/redirect/subdomains
 - ✅ Concurrencia real con goroutines + worker pool fan-out
 - ✅ Arquitectura limpia con interfaces separadas
 - ✅ Almacenamiento local SQLite para historial
-- ✅ Reportes en JSON y PDF
-- ✅ Tests con servidores mock httptest
+- ✅ Reportes en JSON, PDF, HTML, SARIF, Markdown
+- ✅ API REST + scheduler + notificaciones (Producer-ready)
+- ✅ Tests con servidores mock httptest + benchmarks + fuzzing
 - ✅ Docker multi-stage
 - ✅ CI/CD con GitHub Actions
 

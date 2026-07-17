@@ -1,0 +1,3 @@
+# Targets para escaneo masivo
+http://testphp.vulnweb.com
+https://httpbin.org

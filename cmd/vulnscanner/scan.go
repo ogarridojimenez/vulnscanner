@@ -32,178 +32,200 @@ Examples:
 		target := args[0]
 		cfg.Target = target
 
-		// Load config file if provided (Feature 004)
-		configFile, _ := cmd.Flags().GetString("config")
-		if configFile != "" {
-			fc, err := config.LoadFromFile(configFile)
+		// Multi-target from file (Feature 005)
+		targetsFile, _ := cmd.Flags().GetString("targets-file")
+		if targetsFile != "" {
+			targets, err := scanner.LoadTargetsFromFile(targetsFile)
 			if err != nil {
-				return fmt.Errorf("config load failed: %w", err)
+				return fmt.Errorf("load targets: %w", err)
 			}
-			cfg.ApplyFromFile(fc)
-			color.Yellow("Loaded config: %s", configFile)
-		}
-
-		// Parse ports if provided
-		portsStr, _ := cmd.Flags().GetString("ports")
-		if portsStr != "" {
-			parts := strings.Split(portsStr, ",")
-			for _, p := range parts {
-				var port int
-				if _, err := fmt.Sscanf(p, "%d", &port); err == nil {
-					cfg.Ports = append(cfg.Ports, port)
+			color.Cyan("Multi-target mode: %d targets from %s", len(targets), targetsFile)
+			for i, t := range targets {
+				color.Yellow("[%d/%d] %s", i+1, len(targets), t)
+				if err := executeTargetScan(cmd, cfg, t); err != nil {
+					slog.Warn("target failed", "target", t, "error", err)
 				}
 			}
+			return nil
 		}
 
-		// Determine modules
-		full, _ := cmd.Flags().GetBool("full")
-		modulesStr, _ := cmd.Flags().GetString("modules")
-		if full {
-			cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss", "ssrf", "lfi", "redirect", "cookies", "tech", "subdomain"}
-		} else if modulesStr != "" {
-			cfg.Modules = strings.Split(modulesStr, ",")
-		} else {
-			cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss"}
-		}
+		return executeTargetScan(cmd, cfg, target)
+	},
+}
 
-		// Log level
-		slog.SetLogLoggerLevel(slog.LevelInfo)
-		if verbose {
-			slog.SetLogLoggerLevel(slog.LevelDebug)
-		}
-
-		// Auth session (Feature 003)
-		authLoginURL, _ := cmd.Flags().GetString("auth-login-url")
-		if authLoginURL != "" {
-			authUser, _ := cmd.Flags().GetString("auth-user")
-			authPass, _ := cmd.Flags().GetString("auth-pass")
-			authTokenField, _ := cmd.Flags().GetString("auth-token-field")
-			if authUser == "" || authPass == "" {
-				return fmt.Errorf("auth requires --auth-user and --auth-pass")
-			}
-			cfg.AuthLoginURL = authLoginURL
-			cfg.AuthUser = authUser
-			cfg.AuthPass = authPass
-			cfg.AuthTokenField = authTokenField
-			color.Yellow("Authenticating with %s...", authLoginURL)
-			sess, err := auth.NewSession(auth.Config{
-				LoginURL:   authLoginURL,
-				Username:   authUser,
-				Password:   authPass,
-				TokenField: authTokenField,
-				Timeout:    cfg.Timeout,
-			})
-			if err != nil {
-				return fmt.Errorf("auth failed: %w", err)
-			}
-			cfg.SetAuthSession(sess)
-			color.Green("Authenticated successfully")
-		}
-
-		// Print banner
-		color.Cyan("VulnScanner — Security Audit Tool")
-		fmt.Println()
-
-		// Run scan
-		start := time.Now()
-		scan := scanner.New(cfg)
-		results, modulesRun, err := scan.Run(target)
+// executeTargetScan runs a full scan for a single target.
+func executeTargetScan(cmd *cobra.Command, cfg *config.Config, target string) error {
+	// Parse ports if provided
+	configFile, _ := cmd.Flags().GetString("config")
+	if configFile != "" {
+		fc, err := config.LoadFromFile(configFile)
 		if err != nil {
-			return fmt.Errorf("scan failed: %w", err)
+			return fmt.Errorf("config load failed: %w", err)
 		}
-		duration := time.Since(start)
+		cfg.ApplyFromFile(fc)
+		color.Yellow("Loaded config: %s", configFile)
+	}
 
-		// Build report
-		summary := models.BuildSummary(results)
-		reportID := fmt.Sprintf("scan_%s_%s",
-			sanitizeFilename(target),
-			start.Format("20060102_150405"))
-
-		report := &models.ScanReport{
-			ID:         reportID,
-			Target:     target,
-			Timestamp:  start,
-			Duration:   duration,
-			ModulesRun: modulesRun,
-			Results:    results,
-			Summary:    summary,
-			Status:     "completed",
-		}
-
-		// Print results table
-		printResultsTable(target, report)
-
-		// Save to database
-		dbPath := cfg.DBPath
-		store := storage.NewSQLiteStore(dbPath)
-		if err := store.Init(); err != nil {
-			slog.Warn("could not init storage", "error", err)
-		} else {
-			if err := store.SaveScan(report); err != nil {
-				slog.Warn("could not save scan", "error", err)
+	// Parse ports if provided
+	portsStr, _ := cmd.Flags().GetString("ports")
+	if portsStr != "" {
+		parts := strings.Split(portsStr, ",")
+		for _, p := range parts {
+			var port int
+			if _, err := fmt.Sscanf(p, "%d", &port); err == nil {
+				cfg.Ports = append(cfg.Ports, port)
 			}
-			count, _ := store.Count()
-			color.Magenta("\nDatabase: %s (%d previous scans)", dbPath, count-1)
 		}
+	}
 
-		// Generate report file
-		outputFile, _ := cmd.Flags().GetString("output")
-		format, _ := cmd.Flags().GetString("format")
+	// Determine modules
+	full, _ := cmd.Flags().GetBool("full")
+	modulesStr, _ := cmd.Flags().GetString("modules")
+	if full {
+		cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss", "ssrf", "lfi", "redirect", "cookies", "tech", "subdomain"}
+	} else if modulesStr != "" {
+		cfg.Modules = strings.Split(modulesStr, ",")
+	} else {
+		cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss"}
+	}
 
-		if outputFile == "" {
-			ext := ".json"
-			switch format {
-			case "pdf":
-				ext = ".pdf"
-			case "html":
-				ext = ".html"
-			case "sarif":
-				ext = ".sarif.json"
-			case "md":
-				ext = ".md"
-			}
-			outputFile = fmt.Sprintf("report_%s_%s%s",
-				sanitizeFilename(target),
-				start.Format("20060102_150405"),
-				ext)
+	// Log level
+	slog.SetLogLoggerLevel(slog.LevelInfo)
+	if verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	// Auth session (Feature 003)
+	authLoginURL, _ := cmd.Flags().GetString("auth-login-url")
+	if authLoginURL != "" {
+		authUser, _ := cmd.Flags().GetString("auth-user")
+		authPass, _ := cmd.Flags().GetString("auth-pass")
+		authTokenField, _ := cmd.Flags().GetString("auth-token-field")
+		if authUser == "" || authPass == "" {
+			return fmt.Errorf("auth requires --auth-user and --auth-pass")
 		}
+		cfg.AuthLoginURL = authLoginURL
+		cfg.AuthUser = authUser
+		cfg.AuthPass = authPass
+		cfg.AuthTokenField = authTokenField
+		color.Yellow("Authenticating with %s...", authLoginURL)
+		sess, err := auth.NewSession(auth.Config{
+			LoginURL:   authLoginURL,
+			Username:   authUser,
+			Password:   authPass,
+			TokenField: authTokenField,
+			Timeout:    cfg.Timeout,
+		})
+		if err != nil {
+			return fmt.Errorf("auth failed: %w", err)
+		}
+		cfg.SetAuthSession(sess)
+		color.Green("Authenticated successfully")
+	}
 
+	// Print banner
+	color.Cyan("VulnScanner — Security Audit Tool")
+	fmt.Println()
+
+	// Run scan
+	start := time.Now()
+	scan := scanner.New(cfg)
+	results, modulesRun, err := scan.Run(target)
+	if err != nil {
+		return fmt.Errorf("scan failed: %w", err)
+	}
+	duration := time.Since(start)
+
+	// Build report
+	summary := models.BuildSummary(results)
+	reportID := fmt.Sprintf("scan_%s_%s",
+		sanitizeFilename(target),
+		start.Format("20060102_150405"))
+
+	report := &models.ScanReport{
+		ID:         reportID,
+		Target:     target,
+		Timestamp:  start,
+		Duration:   duration,
+		ModulesRun: modulesRun,
+		Results:    results,
+		Summary:    summary,
+		Status:     "completed",
+	}
+
+	// Print results table
+	printResultsTable(target, report)
+
+	// Save to database
+	dbPath := cfg.DBPath
+	store := storage.NewSQLiteStore(dbPath)
+	if err := store.Init(); err != nil {
+		slog.Warn("could not init storage", "error", err)
+	} else {
+		if err := store.SaveScan(report); err != nil {
+			slog.Warn("could not save scan", "error", err)
+		}
+		count, _ := store.Count()
+		color.Magenta("\nDatabase: %s (%d previous scans)", dbPath, count-1)
+	}
+
+	// Generate report file
+	outputFile, _ := cmd.Flags().GetString("output")
+	format, _ := cmd.Flags().GetString("format")
+
+	if outputFile == "" {
+		ext := ".json"
 		switch format {
 		case "pdf":
-			if err := reporter.PDFReport(report, outputFile); err != nil {
-				slog.Warn("could not generate PDF report", "error", err)
-			} else {
-				color.Green("Report saved: %s", outputFile)
-			}
+			ext = ".pdf"
 		case "html":
-			if err := reporter.HTMLReport(report, outputFile); err != nil {
-				slog.Warn("could not generate HTML report", "error", err)
-			} else {
-				color.Green("Report saved: %s", outputFile)
-			}
+			ext = ".html"
 		case "sarif":
-			if err := reporter.SARIFReport(report, outputFile); err != nil {
-				slog.Warn("could not generate SARIF report", "error", err)
-			} else {
-				color.Green("Report saved: %s", outputFile)
-			}
+			ext = ".sarif.json"
 		case "md":
-			if err := reporter.MarkdownReport(report, outputFile); err != nil {
-				slog.Warn("could not generate Markdown report", "error", err)
-			} else {
-				color.Green("Report saved: %s", outputFile)
-			}
-		default:
-			if err := reporter.JSONReport(report, outputFile); err != nil {
-				slog.Warn("could not generate JSON report", "error", err)
-			} else {
-				color.Green("Report saved: %s", outputFile)
-			}
+			ext = ".md"
 		}
+		outputFile = fmt.Sprintf("report_%s_%s%s",
+			sanitizeFilename(target),
+			start.Format("20060102_150405"),
+			ext)
+	}
 
-		fmt.Println()
-		return nil
-	},
+	switch format {
+	case "pdf":
+		if err := reporter.PDFReport(report, outputFile); err != nil {
+			slog.Warn("could not generate PDF report", "error", err)
+		} else {
+			color.Green("Report saved: %s", outputFile)
+		}
+	case "html":
+		if err := reporter.HTMLReport(report, outputFile); err != nil {
+			slog.Warn("could not generate HTML report", "error", err)
+		} else {
+			color.Green("Report saved: %s", outputFile)
+		}
+	case "sarif":
+		if err := reporter.SARIFReport(report, outputFile); err != nil {
+			slog.Warn("could not generate SARIF report", "error", err)
+		} else {
+			color.Green("Report saved: %s", outputFile)
+		}
+	case "md":
+		if err := reporter.MarkdownReport(report, outputFile); err != nil {
+			slog.Warn("could not generate Markdown report", "error", err)
+		} else {
+			color.Green("Report saved: %s", outputFile)
+		}
+	default:
+		if err := reporter.JSONReport(report, outputFile); err != nil {
+			slog.Warn("could not generate JSON report", "error", err)
+		} else {
+			color.Green("Report saved: %s", outputFile)
+		}
+	}
+
+	fmt.Println()
+	return nil
 }
 
 var severityColors = map[models.Severity]func(format string, a ...interface{}) string{
@@ -287,6 +309,8 @@ func init() {
 	scanCmd.Flags().String("auth-token-field", "", "JSON field name for auth token in login response")
 	// Config file (Feature 004)
 	scanCmd.Flags().String("config", "", "path to YAML/TOML config file")
+	// Multi-target (Feature 005)
+	scanCmd.Flags().String("targets-file", "", "path to file with targets (one per line)")
 }
 
 // sanitizeFilename replaces characters unsafe for filenames

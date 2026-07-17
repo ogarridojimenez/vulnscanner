@@ -81,6 +81,7 @@ func NewSession(cfg Config) (*Session, error) {
 	sess := &Session{
 		Cookies: resp.Cookies(),
 		BaseURL: cfg.LoginURL,
+		Headers: make(map[string]string),
 	}
 
 	// Try to extract token from JSON response
