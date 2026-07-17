@@ -25,12 +25,12 @@ const (
 
 // Result is a single finding from any scanner module
 type Result struct {
-	Module         Module   `json:"module"`
-	Name           string   `json:"name"`
-	Severity       Severity `json:"severity"`
-	Description    string   `json:"description"`
-	Recommendation string   `json:"recommendation,omitempty"`
-	Evidence       string   `json:"evidence,omitempty"`
+	Module         Module            `json:"module"`
+	Name           string            `json:"name"`
+	Severity       Severity          `json:"severity"`
+	Description    string            `json:"description"`
+	Recommendation string            `json:"recommendation,omitempty"`
+	Evidence       string            `json:"evidence,omitempty"`
 	Details        map[string]string `json:"details,omitempty"`
 }
 

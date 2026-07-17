@@ -4,15 +4,15 @@ import "time"
 
 // ScanReport is the complete output of a scan
 type ScanReport struct {
-	ID          string         `json:"id"`
-	Target      string         `json:"target"`
-	Timestamp   time.Time      `json:"timestamp"`
-	Duration    time.Duration  `json:"duration"`
-	ModulesRun  []Module       `json:"modules_run"`
-	Results     []Result       `json:"results"`
-	Summary     Summary        `json:"summary"`
-	RawOutput   string         `json:"raw_output,omitempty"`
-	Status      string         `json:"status"`
+	ID         string        `json:"id"`
+	Target     string        `json:"target"`
+	Timestamp  time.Time     `json:"timestamp"`
+	Duration   time.Duration `json:"duration"`
+	ModulesRun []Module      `json:"modules_run"`
+	Results    []Result      `json:"results"`
+	Summary    Summary       `json:"summary"`
+	RawOutput  string        `json:"raw_output,omitempty"`
+	Status     string        `json:"status"`
 }
 
 // Summary aggregates findings

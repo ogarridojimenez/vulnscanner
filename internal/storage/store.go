@@ -35,7 +35,7 @@ type Store interface {
 
 // VulnStats represents aggregated vulnerability stats
 type VulnStats struct {
-	Severity string `json:"severity"`
-	Count    int    `json:"count"`
+	Severity string    `json:"severity"`
+	Count    int       `json:"count"`
 	LastSeen time.Time `json:"last_seen"`
 }
