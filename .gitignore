@@ -1,29 +1,18 @@
 # Binaries
-*.exe
-*.test
-*.out
 vulnscan
-
-# Reports
-report_*.json
-report_*.pdf
-
-# Database
-history.db
+vulnscan.exe
+vulnscan.exe~
 *.db
+
+# Test/scan artifacts
+api_*.json
+report_*.json
+scan_*.json
+scheduled_*.json
+
+# Temp
+/tmp/
+
+# SQLite WAL/SHM
 *.db-wal
 *.db-shm
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build
-/dist/
-/release/

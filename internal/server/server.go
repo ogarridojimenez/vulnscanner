@@ -127,6 +127,7 @@ func (s *Server) handleScan(c *gin.Context) {
 			Duration:   0,
 			ModulesRun: modulesRun,
 			Results:    results,
+			Summary:    models.BuildSummary(results),
 			Status:     "completed",
 		}
 		s.mu.Lock()

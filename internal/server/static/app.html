@@ -145,12 +145,31 @@ async function loadDetail(id){
   if(!r.ok){ document.getElementById('detail-body').innerHTML='<p>No encontrado</p>'; return; }
   const rep = await r.json();
   document.getElementById('detail-title').textContent = 'Escaneo: ' + rep.Target;
-  const findings = rep.Results.map(rs=>`
-    <div class="finding sev-${rs.Severity.toLowerCase()}">
-      <strong>[${rs.Severity}]</strong> ${rs.Name}<br>
-      <span style="color:var(--muted);font-size:13px">${rs.Description||''}</span>
-    </div>`).join('') || '<p>Sin hallazgos.</p>';
-  document.getElementById('detail-body').innerHTML = findings;
+
+  const mods = (rep.modules_run||[]).join(', ') || 'todos';
+  const s = rep.summary || {};
+  const summary = `
+    <div class="card" style="margin-bottom:16px;">
+      <strong>Módulos:</strong> ${mods}<br>
+      <strong>Estado:</strong> ${rep.status}<br>
+      <strong>Resumen:</strong> ${s.total_checks||0} checks · ${s.vulnerabilities||0} vulns
+      (High:${s.high||0} Med:${s.medium||0} Low:${s.low||0} Info:${s.info||0})
+    </div>`;
+
+  let findings;
+  if(!rep.results || rep.results.length === 0){
+    findings = '<p style="color:var(--muted)">Sin hallazgos (o target no alcanzable).</p>';
+  } else {
+    findings = rep.results.map(rs=>{
+      const sev = (rs.severity||'info').toLowerCase();
+      return `
+      <div class="finding sev-${sev}">
+        <strong>[${rs.severity||'INFO'}]</strong> ${rs.name||'sin nombre'}<br>
+        <span style="color:var(--muted);font-size:13px">${rs.description||''}</span>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('detail-body').innerHTML = summary + findings;
 }
 
 // Router simple
