@@ -149,3 +149,7 @@ GitHub Actions (`.github/workflows/ci.yml`):
 ## Licencia
 
 MIT
+
+---
+
+📖 **Manual de usuario completo**: [`MANUAL.md`](MANUAL.md)
