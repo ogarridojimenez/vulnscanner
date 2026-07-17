@@ -91,6 +91,14 @@ rules/                 → Payloads SQLi/XSS
 - ✅ Docker multi-stage
 - ✅ CI/CD con GitHub Actions
 
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`):
+- **Lint**: `go vet` + `gofmt` check
+- **Test**: matrix Go 1.23/1.24 con `-race`
+- **Build Release**: cross-compile en tags `v*` (linux/darwin/windows × amd64/arm64)
+- **Docker**: build de imagen en tags `v*`
+
 ## Stack
 
 | Componente | Librería |
