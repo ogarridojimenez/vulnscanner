@@ -13,6 +13,7 @@ import (
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
 	"github.com/ogarridojimenez/vulnscanner/internal/scanner"
 	"github.com/ogarridojimenez/vulnscanner/internal/storage"
+	"github.com/ogarridojimenez/vulnscanner/internal/auth"
 )
 
 var scanCmd = &cobra.Command{
@@ -57,6 +58,34 @@ Examples:
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 		if verbose {
 			slog.SetLogLoggerLevel(slog.LevelDebug)
+		}
+
+		// Auth session (Feature 003)
+		authLoginURL, _ := cmd.Flags().GetString("auth-login-url")
+		if authLoginURL != "" {
+			authUser, _ := cmd.Flags().GetString("auth-user")
+			authPass, _ := cmd.Flags().GetString("auth-pass")
+			authTokenField, _ := cmd.Flags().GetString("auth-token-field")
+			if authUser == "" || authPass == "" {
+				return fmt.Errorf("auth requires --auth-user and --auth-pass")
+			}
+			cfg.AuthLoginURL = authLoginURL
+			cfg.AuthUser = authUser
+			cfg.AuthPass = authPass
+			cfg.AuthTokenField = authTokenField
+			color.Yellow("Authenticating with %s...", authLoginURL)
+			sess, err := auth.NewSession(auth.Config{
+				LoginURL:   authLoginURL,
+				Username:   authUser,
+				Password:   authPass,
+				TokenField: authTokenField,
+				Timeout:    cfg.Timeout,
+			})
+			if err != nil {
+				return fmt.Errorf("auth failed: %w", err)
+			}
+			cfg.SetAuthSession(sess)
+			color.Green("Authenticated successfully")
 		}
 
 		// Print banner
@@ -111,8 +140,15 @@ Examples:
 
 		if outputFile == "" {
 			ext := ".json"
-			if format == "pdf" {
+			switch format {
+			case "pdf":
 				ext = ".pdf"
+			case "html":
+				ext = ".html"
+			case "sarif":
+				ext = ".sarif.json"
+			case "md":
+				ext = ".md"
 			}
 			outputFile = fmt.Sprintf("report_%s_%s%s",
 				sanitizeFilename(target),
@@ -120,13 +156,32 @@ Examples:
 				ext)
 		}
 
-		if format == "pdf" {
+		switch format {
+		case "pdf":
 			if err := reporter.PDFReport(report, outputFile); err != nil {
 				slog.Warn("could not generate PDF report", "error", err)
 			} else {
 				color.Green("Report saved: %s", outputFile)
 			}
-		} else {
+		case "html":
+			if err := reporter.HTMLReport(report, outputFile); err != nil {
+				slog.Warn("could not generate HTML report", "error", err)
+			} else {
+				color.Green("Report saved: %s", outputFile)
+			}
+		case "sarif":
+			if err := reporter.SARIFReport(report, outputFile); err != nil {
+				slog.Warn("could not generate SARIF report", "error", err)
+			} else {
+				color.Green("Report saved: %s", outputFile)
+			}
+		case "md":
+			if err := reporter.MarkdownReport(report, outputFile); err != nil {
+				slog.Warn("could not generate Markdown report", "error", err)
+			} else {
+				color.Green("Report saved: %s", outputFile)
+			}
+		default:
 			if err := reporter.JSONReport(report, outputFile); err != nil {
 				slog.Warn("could not generate JSON report", "error", err)
 			} else {
@@ -211,8 +266,13 @@ func init() {
 	scanCmd.Flags().Bool("full", false, "run all scan modules")
 	scanCmd.Flags().String("modules", "", "comma-separated module list (e.g. ssrf,lfi,redirect,cookies,tech,subdomain)")
 	scanCmd.Flags().String("ports", "", "comma-separated ports to scan (e.g. 80,443,8080)")
-	scanCmd.Flags().String("format", "json", "report format: json or pdf")
+	scanCmd.Flags().String("format", "json", "report format: json, pdf, html, sarif, md")
 	scanCmd.Flags().StringP("output", "o", "", "output file path")
+	// Auth (Feature 003)
+	scanCmd.Flags().String("auth-login-url", "", "login URL for authenticated scans")
+	scanCmd.Flags().String("auth-user", "", "username for authenticated scans")
+	scanCmd.Flags().String("auth-pass", "", "password for authenticated scans")
+	scanCmd.Flags().String("auth-token-field", "", "JSON field name for auth token in login response")
 }
 
 // sanitizeFilename replaces characters unsafe for filenames

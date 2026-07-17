@@ -4,9 +4,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
+	"github.com/ogarridojimenez/vulnscanner/internal/auth"
 	"github.com/ogarridojimenez/vulnscanner/internal/config"
 	"github.com/ogarridojimenez/vulnscanner/internal/models"
 )
@@ -29,12 +31,25 @@ func New(cfg *config.Config) *Scanner {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: tr,
+	}
+	// Apply proxy if configured
+	if cfg.Proxy != "" {
+		if p, err := url.Parse(cfg.Proxy); err == nil {
+			tr.Proxy = http.ProxyURL(p)
+		}
+	}
+	// Apply authenticated session if present (Feature 003)
+	if sess := cfg.GetAuthSession(); sess != nil {
+		if authSess, ok := sess.(*auth.Session); ok {
+			client.Transport = &authTransport{Base: tr, session: authSess}
+		}
+	}
 	return &Scanner{
-		Config: cfg,
-		client: &http.Client{
-			Timeout:   timeout,
-			Transport: tr,
-		},
+		Config:  cfg,
+		client:  client,
 		workers: make(chan struct{}, cfg.Workers),
 	}
 }
