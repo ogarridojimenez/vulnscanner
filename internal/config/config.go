@@ -17,6 +17,11 @@ type Config struct {
 	OutputFile   string
 	DBPath       string
 	Modules      []string
+
+	// Extended config (from file)
+	RateLimit   float64     // requests per second per host (0 = unlimited)
+	Proxy       string      // e.g. http://127.0.0.1:8080
+	ModuleConfig *FileConfig // raw file config for module access
 }
 
 // DefaultConfig returns a Config with sensible defaults

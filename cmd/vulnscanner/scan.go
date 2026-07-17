@@ -44,7 +44,12 @@ Examples:
 
 		// Determine modules
 		full, _ := cmd.Flags().GetBool("full")
+		modulesStr, _ := cmd.Flags().GetString("modules")
 		if full {
+			cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss", "ssrf", "lfi", "redirect", "cookies", "tech", "subdomain"}
+		} else if modulesStr != "" {
+			cfg.Modules = strings.Split(modulesStr, ",")
+		} else {
 			cfg.Modules = []string{"port", "headers", "tls", "directory", "sqli", "xss"}
 		}
 
@@ -204,6 +209,7 @@ func printResultsTable(target string, report *models.ScanReport) {
 
 func init() {
 	scanCmd.Flags().Bool("full", false, "run all scan modules")
+	scanCmd.Flags().String("modules", "", "comma-separated module list (e.g. ssrf,lfi,redirect,cookies,tech,subdomain)")
 	scanCmd.Flags().String("ports", "", "comma-separated ports to scan (e.g. 80,443,8080)")
 	scanCmd.Flags().String("format", "json", "report format: json or pdf")
 	scanCmd.Flags().StringP("output", "o", "", "output file path")

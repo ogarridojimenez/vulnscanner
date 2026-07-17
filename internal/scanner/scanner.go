@@ -45,6 +45,8 @@ func (s *Scanner) modulesToRun() []models.Module {
 		return []models.Module{
 			models.ModulePort, models.ModuleHeaders, models.ModuleTLS,
 			models.ModuleDirectory, models.ModuleSQLi, models.ModuleXSS,
+			models.ModuleSSRF, models.ModuleLFI, models.ModuleRedirect,
+			models.ModuleCookies, models.ModuleTech, models.ModuleSubdomain,
 		}
 	}
 	if len(s.Config.Modules) > 0 {
@@ -125,6 +127,31 @@ func (s *Scanner) runModule(moduleName models.Module, target string, out chan<- 
 		}
 	case models.ModuleXSS:
 		for _, r := range detectXSS(target, s.Config.Timeout, s.client) {
+			out <- r
+		}
+	case models.ModuleSSRF:
+		for _, r := range detectSSRF(target, s.client, s.Config.Timeout, nil) {
+			out <- r
+		}
+	case models.ModuleLFI:
+		for _, r := range detectLFI(target, s.client, s.Config.Timeout, nil) {
+			out <- r
+		}
+	case models.ModuleRedirect:
+		for _, r := range detectRedirect(target, s.client, s.Config.Timeout, nil) {
+			out <- r
+		}
+	case models.ModuleCookies:
+		for _, r := range checkCookies(target, s.client, s.Config.Timeout) {
+			out <- r
+		}
+	case models.ModuleTech:
+		for _, r := range detectTech(target, s.client, s.Config.Timeout) {
+			out <- r
+		}
+	case models.ModuleSubdomain:
+		domain := target
+		for _, r := range enumSubdomains(domain, nil) {
 			out <- r
 		}
 	}

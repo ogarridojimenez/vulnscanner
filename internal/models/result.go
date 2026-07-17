@@ -21,6 +21,12 @@ const (
 	ModuleDirectory Module = "directory"
 	ModuleSQLi      Module = "sqli"
 	ModuleXSS       Module = "xss"
+	ModuleSSRF      Module = "ssrf"
+	ModuleLFI       Module = "lfi"
+	ModuleRedirect  Module = "redirect"
+	ModuleCookies   Module = "cookies"
+	ModuleTech      Module = "tech"
+	ModuleSubdomain Module = "subdomain"
 )
 
 // Result is a single finding from any scanner module

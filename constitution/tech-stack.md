@@ -1,34 +1,35 @@
-# Stack Tecnológico — VulnScanner
+# Tech Stack — VulnScanner (Expanded)
 
-## Tecnologías
-| Componente | Tecnología | Propósito |
-|------------|-----------|-----------|
-| Lenguaje | Go 1.23+ | Rendimiento, concurrencia nativa |
-| CLI Framework | Cobra + pflag | Comandos, flags, subcomandos |
-| Concurrencia | Goroutines + worker pool (fan-out) | Escaneo paralelo |
-| HTTP Client | net/http + custom transport | Timeout, proxy, cookies configurables |
-| SQLite | modernc.org/sqlite (CGO-free) | Persistencia de resultados |
-| PDF | go-pdf/fpdf | Reportes profesionales |
-| Colores | fatih/color | Output coloreado en terminal |
-| Logging | slog (stdlib) | Log estructurado |
-| Testing | testing + httptest + testify | Tests unitarios e integración |
+## Core (existene)
+- Go 1.23+ (CGO-free)
+- `spf13/cobra` — CLI framework
+- `fatih/color` — Output coloreado en terminal
+- `go-pdf/fpdf` — Reportes PDF
+- `ncruces/go-sqlite3` — Storage SQLite
 
-## Comandos
-```bash
-go build -o vulnscan.exe ./cmd/vulnscanner/
-go test ./...
-go vet ./...
-go run ./cmd/vulnscanner/ scan example.com
-```
+## Nuevas dependencias (fase de expansión)
 
-## Convenciones
-- **Idioma:** Código y comentarios en inglés. Output de CLI en inglés.
-- **Naming:** camelCase en Go estándar. Paquetes: `internal/scanner`, `internal/reporter`, `internal/storage`, `internal/models`, `internal/config`.
-- **Manejo de errores:** Errores envueltos con `fmt.Errorf("context: %w", err)`. Nunca `panic` fuera de main.
-- **Interfaces:** Definir interfaces pequeñas (1-2 métodos) en el package que las consume.
+| Categoría | Librería | Uso |
+|-----------|----------|-----|
+| Config | `gopkg.in/yaml.v3` | Configuración YAML personalizada |
+| Config | `github.com/BurntSushi/toml` | Configuración TOML alternativa |
+| HTML parsing | `github.com/PuerkitoBio/goquery` | Detección de tecnologías (Wappalyzer-like) |
+| Web server | `github.com/gin-gonic/gin` | API server + Web UI |
+| HTTP client | `net/http` (stdlib) | Proxy support, auth sessions |
+| Scheduler | `github.com/robfig/cron/v3` | Escaneos recurrentes |
+| Notifications | `github.com/slack-go/slack` | Slack/Discord webhooks |
+| Templates | `html/template` (stdlib) | Reportes HTML |
+| SARIF | `github.com/owenrumney/go-sarif` | SARIF 2.1.0 output |
 
-## Prohibiciones explícitas
-- ❌ NO usar CGO ni librerías que requieran CGO
-- ❌ NO ejecutar comandos externos (nmap, curl, nuclei)
-- ❌ NO escanear sin consentimiento explícito del target
-- ❌ NO almacenar credenciales ni datos sensibles en logs
+## Principios no negociables (actualizados)
+1. **CGO-free** — Todas las dependencias deben ser puras Go
+2. **Sin dependencias de servicios externos** en runtime (salvo notificaciones opcionales)
+3. **Concurrencia real** — worker pools para todos los módulos
+4. **Configurable** — YAML/TOML para módulos, payloads, timeouts
+5. **Extensible** — Nuevos módulos implementan la interfaz `Scanner`
+6. **Testeable** — httptest para todos los módulos de red
+
+## Restricciones
+- Binario único portable
+- Sin acceso a internet obligatorio (subdomain enum usa DNS local primero)
+- Proxy opcional (Burp/Zap) vía `HTTP_PROXY`

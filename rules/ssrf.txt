@@ -1,0 +1,9 @@
+http://169.254.169.254/latest/meta-data/
+http://169.254.169.254/
+http://127.0.0.1:80/
+http://localhost/
+http://0.0.0.0/
+file:///etc/passwd
+file:///C:/Windows/win.ini
+http://[::1]/
+http://2130706433/  # decimal IP of 127.0.0.1
