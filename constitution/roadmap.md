@@ -1,36 +1,37 @@
 # Roadmap — VulnScanner (Expanded)
 
-## Fase 1: Módulos de detección avanzada
-- [ ] SSRF detection
-- [ ] LFI/RFI detection
-- [ ] Open redirect detection
-- [ ] Cookie mismanagement
-- [ ] Tech detection (Wappalyzer-like)
-- [ ] Subdomain enumeration
+## Fase 1: Módulos de detección avanzada ✅
+- [x] SSRF detection
+- [x] LFI/RFI detection
+- [x] Open redirect detection
+- [x] Cookie mismanagement
+- [x] Tech detection (Wappalyzer-like)
+- [x] Subdomain enumeration
 
-## Fase 2: Escaneo autenticado
-- [ ] Login automático (form-based, basic auth, JWT)
-- [ ] Session/cookie renewal
-- [ ] Auth context en todos los módulos
+## Fase 2: Escaneo autenticado ✅
+- [x] Login automático (form-based, basic auth, JWT)
+- [x] Session/cookie renewal
+- [x] Auth context en todos los módulos
 
-## Fase 3: Reportes adicionales
-- [ ] HTML con gráficos
-- [ ] SARIF 2.1.0
-- [ ] Markdown
+## Fase 3: Reportes adicionales ✅
+- [x] HTML con gráficos (donut SVG)
+- [x] SARIF 2.1.0
+- [x] Markdown
 
-## Fase 4: Configuración avanzada
-- [ ] YAML/TOML loader
-- [ ] Rate limiting por host
-- [ ] Proxy support (Burp/Zap)
+## Fase 4: Configuración avanzada ⏳
+- [x] YAML/TOML loader (internal/config/loader.go)
+- [x] Rate limiting por host (internal/config/ratelimit.go)
+- [ ] Proxy support wiring en CLI (transport listo)
+- [ ] CLI flag --config
 
-## Fase 5: Producer-ready
+## Fase 5: Producer-ready ⏳
 - [ ] Web UI + API server (Gin)
 - [ ] Scheduler de escaneos (cron)
 - [ ] Notificaciones (Slack/Discord/Email)
 - [ ] Multi-target scan desde archivo
 
-## Fase 6: Calidad
-- [ ] Integration tests (storage, reporter)
+## Fase 6: Calidad ⏳
+- [x] Integration tests (reporter)
 - [ ] Fuzzing de payloads ampliado
 - [ ] Benchmarks de concurrencia
-- [ ] CI/CD actualizado
+- [ ] CI/CD actualizado (coverage)

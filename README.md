@@ -32,16 +32,19 @@ vulnscan scan example.com --full
 # Escaneo con workers y puertos específicos
 vulnscan scan example.com --ports 80,443,8080,8443 --workers 20
 
-# Salida a JSON
-vulnscan scan example.com --full --output report.json
+# Escaneo con módulos específicos
+vulnscan scan example.com --modules ssrf,lfi,redirect,cookies,tech,subdomain --workers 10
 
-# Salida a PDF
-vulnscan scan example.com --full --format pdf -o report.pdf
+# Escaneo autenticado
+vulnscan scan example.com --auth-login-url https://app.com/login --auth-user admin --auth-pass secret
 
-# Historial y estadísticas
-vulnscan history
-vulnscan summary
-vulnscan report <scan-id> --format pdf
+# Reportes: json, pdf, html, sarif, md
+vulnscan scan example.com --full --format html -o report.html
+vulnscan scan example.com --full --format sarif -o report.sarif.json
+vulnscan scan example.com --full --format md -o report.md
+
+# Configuración avanzada desde archivo
+vulnscan scan example.com --config config.yaml
 
 # Gestión de base de datos
 vulnscan db init
@@ -55,9 +58,14 @@ vulnscan db check
 | **Port Scan** | Escaneo TCP concurrente con detección de servicios (25+ puertos comunes) | INFO |
 | **Security Headers** | Verifica 12 cabeceras OWASP (HSTS, CSP, XFO, etc.) | MEDIUM si faltan |
 | **TLS Check** | Versión TLS, cifrado, caducidad, cadena de certificados | HIGH si expirado |
-| **Directory Fuzzing** | 30 rutas comunes, detecta 200/403/301 | MEDIUM si encontrado |
 | **SQLi Detection** | 13 payloads, detección por reflexión | HIGH si reflejado |
 | **XSS Detection** | 11 payloads, detección por reflexión | HIGH si reflejado |
+| **SSRF Detection** | 8 payloads, metadata cloud + blind | CRITICAL si metadata |
+| **LFI/RFI** | 8 payloads, etc/passwd + RFI | HIGH si LFI |
+| **Open Redirect** | 6 payloads, Location externo | MEDIUM |
+| **Cookie Audit** | Flags Secure/HttpOnly/SameSite | MEDIUM si falta |
+| **Tech Detection** | goquery + headers (Wappalyzer-like) | INFO |
+| **Subdomain Enum** | Resolución DNS concurrente (20 workers) | INFO |
 
 ## Flags globales
 
@@ -66,6 +74,12 @@ vulnscan db check
 | `--workers` / `-w` | 10 | Workers concurrentes |
 | `--timeout` | 5s | Timeout por petición |
 | `--cookie` | — | Cookie para escaneos autenticados |
+| `--modules` | — | Lista de módulos (ssrf,lfi,redirect,cookies,tech,subdomain) |
+| `--auth-login-url` | — | URL de login para escaneo autenticado |
+| `--auth-user` / `--auth-pass` | — | Credenciales de login |
+| `--auth-token-field` | — | Campo JSON del token en respuesta de login |
+| `--format` | json | json, pdf, html, sarif, md |
+| `--config` | — | Archivo YAML/TOML de configuración |
 | `--db` | `~/.vulnscanner/history.db` | Ruta a base de datos |
 | `-v` / `--verbose` | false | Salida detallada |
 
@@ -75,10 +89,11 @@ vulnscan db check
 cmd/vulnscanner/       → CLI (Cobra)
 internal/config/       → Configuración y defaults
 internal/models/       → Dominio (Target, Result, ScanReport)
-internal/scanner/      → 6 módulos de escaneo con worker pool
-internal/reporter/     → JSON y PDF
-internal/storage/      → SQLite CGO-free
-rules/                 → Payloads SQLi/XSS
+internal/scanner/      → 12 módulos de escaneo con worker pool
+internal/reporter/     → JSON, PDF, HTML, SARIF, Markdown
+internal/auth/         → Login automático + sesión (Feature 003)
+internal/config/       → Configuración YAML/TOML + rate-limit + proxy
+rules/                 → Payloads SQLi/XSS/SSRF/LFI/redirect/subdomains
 ```
 
 **Principios:**
