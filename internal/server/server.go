@@ -89,6 +89,8 @@ func (s *Server) registerRoutes() {
 		api.POST("/scan", s.handleScan)
 		api.GET("/scans", s.handleList)
 		api.GET("/scans/:id", s.handleGet)
+		api.POST("/export", s.handleExport)
+		api.POST("/import", s.handleImport)
 	}
 }
 
@@ -197,6 +199,61 @@ func (s *Server) handleGet(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, rep)
+}
+
+func (s *Server) handleExport(c *gin.Context) {
+	scans, err := s.store.ListScans(10000)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	export := make([]gin.H, 0, len(scans))
+	for _, sc := range scans {
+		export = append(export, gin.H{
+			"id":         sc.ID,
+			"target":     sc.Target,
+			"timestamp":  sc.Timestamp,
+			"modules":    sc.Modules,
+			"status":     sc.Status,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"version":    "1.0",
+		"exported_at": time.Now(),
+		"count":      len(export),
+		"scans":      export,
+	})
+}
+
+func (s *Server) handleImport(c *gin.Context) {
+	var payload struct {
+		Scans []struct {
+			ID        string    `json:"id"`
+			Target    string    `json:"target"`
+			Timestamp time.Time `json:"timestamp"`
+			Findings  int       `json:"findings"`
+			Status    string    `json:"status"`
+			Modules   string    `json:"modules"`
+		} `json:"scans"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	imported := 0
+	for _, sc := range payload.Scans {
+		rep := &models.ScanReport{
+			ID:        sc.ID,
+			Target:    sc.Target,
+			Timestamp: sc.Timestamp,
+			Status:    sc.Status,
+		}
+		if err := s.store.SaveScan(rep); err != nil {
+			continue
+		}
+		imported++
+	}
+	c.JSON(http.StatusOK, gin.H{"imported": imported})
 }
 
 // Run starts the HTTP server with graceful shutdown.
