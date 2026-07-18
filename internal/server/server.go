@@ -114,6 +114,7 @@ func (s *Server) registerRoutes() {
 		api.POST("/import", s.handleImport)
 		api.GET("/scans/diff/:id1/:id2", s.handleDiff)
 		api.GET("/scans/:id", s.handleGet)
+		api.GET("/stats", s.handleStats)
 	}
 
 	// JWT Auth endpoints (Feature 021)
@@ -327,6 +328,42 @@ func (s *Server) handleScan(c *gin.Context) {
 	}()
 
 	c.JSON(http.StatusAccepted, gin.H{"scan_id": reportID, "status": "queued"})
+}
+
+func (s *Server) handleStats(c *gin.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	totalScans := len(s.scans)
+	totalFindings := 0
+	bySeverity := map[string]int{"high": 0, "medium": 0, "low": 0, "info": 0}
+	byModule := map[string]int{}
+	byDate := map[string]int{}
+	targets := map[string]int{}
+
+	for _, rep := range s.scans {
+		totalFindings += len(rep.Results)
+		bySeverity["high"] += rep.Summary.High
+		bySeverity["medium"] += rep.Summary.Medium
+		bySeverity["low"] += rep.Summary.Low
+		bySeverity["info"] += rep.Summary.Info
+		for mod, count := range rep.Summary.ByModule {
+			byModule[mod] += count
+		}
+		dateKey := rep.Timestamp.Format("2006-01-02")
+		byDate[dateKey]++
+		targets[rep.Target]++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total_scans":    totalScans,
+		"total_findings": totalFindings,
+		"by_severity":    bySeverity,
+		"by_module":      byModule,
+		"by_date":        byDate,
+		"targets":        targets,
+		"ws_clients":     s.hub.ClientCount(),
+	})
 }
 
 func (s *Server) handleList(c *gin.Context) {

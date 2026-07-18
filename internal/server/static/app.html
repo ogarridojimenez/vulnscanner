@@ -54,6 +54,26 @@
       <h1>Dashboard de Escaneos</h1>
       <a href="/scan/new" class="btn">+ Nuevo Escaneo</a>
     </div>
+    <!-- Charts -->
+    <div id="stats-section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;">
+      <div class="card" style="padding:16px;">
+        <h3 style="color:var(--muted);font-size:13px;margin-bottom:8px;">Hallazgos por Severidad</h3>
+        <canvas id="chart-severity" height="150"></canvas>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="color:var(--muted);font-size:13px;margin-bottom:8px;">Escaneos por Día</h3>
+        <canvas id="chart-timeline" height="150"></canvas>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="color:var(--muted);font-size:13px;margin-bottom:8px;">Hallazgos por Módulo</h3>
+        <canvas id="chart-modules" height="150"></canvas>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="color:var(--muted);font-size:13px;margin-bottom:8px;">Targets Más Escaneados</h3>
+        <canvas id="chart-targets" height="150"></canvas>
+      </div>
+    </div>
+    <!-- Filters -->
     <div class="card" style="display:flex;gap:12px;align-items:end;">
       <div style="flex:1"><label>Buscar target</label><input id="filter-target" placeholder="filtrar por target..."></div>
       <div style="width:160px"><label>Estado</label>
@@ -120,6 +140,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
 const pages = ['dashboard','scan-new','scan-detail'];
 function show(id){ pages.forEach(p=>document.getElementById(p).classList.toggle('hidden', p!==id)); }
@@ -176,6 +197,56 @@ async function loadScans(){
   allScans = data.scans || [];
   currentPage = 1;
   applyFilters();
+  loadStats();
+}
+
+let chartInstances = {};
+
+async function loadStats(){
+  const r = await fetch('/api/stats');
+  if(!r.ok) return;
+  const s = await r.json();
+
+  // Severity donut
+  const sevLabels = Object.keys(s.by_severity);
+  const sevData = Object.values(s.by_severity);
+  const sevColors = ['#f85149','#d29922','#3fb950','#8b949e'];
+  if(chartInstances.sev) chartInstances.sev.destroy();
+  chartInstances.sev = new Chart(document.getElementById('chart-severity'),{
+    type:'doughnut',
+    data:{labels:sevLabels,datasets:[{data:sevData,backgroundColor:sevColors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#e6edf3',font:{size:11}}}}}
+  });
+
+  // Timeline bar
+  const dateLabels = Object.keys(s.by_date).sort();
+  const dateData = dateLabels.map(d=>s.by_date[d]);
+  if(chartInstances.tl) chartInstances.tl.destroy();
+  chartInstances.tl = new Chart(document.getElementById('chart-timeline'),{
+    type:'bar',
+    data:{labels:dateLabels,datasets:[{label:'Escaneos',data:dateData,backgroundColor:'#2ea043',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e',font:{size:10}}},y:{ticks:{color:'#8b949e',font:{size:10}},beginAtZero:true}}}
+  });
+
+  // Modules horizontal bar
+  const modLabels = Object.keys(s.by_module);
+  const modData = Object.values(s.by_module);
+  if(chartInstances.mod) chartInstances.mod.destroy();
+  chartInstances.mod = new Chart(document.getElementById('chart-modules'),{
+    type:'bar',
+    data:{labels:modLabels,datasets:[{data:modData,backgroundColor:'#58a6ff',borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e'},beginAtZero:true},y:{ticks:{color:'#8b949e',font:{size:10}}}}}
+  });
+
+  // Targets pie
+  const tgtLabels = Object.keys(s.targets);
+  const tgtData = Object.values(s.targets);
+  if(chartInstances.tgt) chartInstances.tgt.destroy();
+  chartInstances.tgt = new Chart(document.getElementById('chart-targets'),{
+    type:'pie',
+    data:{labels:tgtLabels,datasets:[{data:tgtData,backgroundColor:sevColors.concat(['#bc8cff','#39d2c0']),borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#e6edf3',font:{size:10}}}}}
+  });
 }
 
 document.getElementById('scan-form').addEventListener('submit', async (e)=>{
