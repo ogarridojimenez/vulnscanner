@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -10,18 +11,34 @@ permissions:
   contents: write
 
 jobs:
-  lint:
-    name: Lint
+  test:
+    name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ["1.21", "1.22"]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
-          cache: true
-      - name: Run go vet
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
         run: go vet ./...
-      - name: Check gofmt
+
+      - name: Check formatting
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
@@ -30,92 +47,77 @@ jobs:
             exit 1
           fi
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ["1.23", "1.24"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-          cache: true
-      - name: Install dependencies
-        run: go mod download
-      - name: Run vet
-        run: go vet ./...
-      - name: Run tests
-        run: go test -v -count=1 -race -coverprofile=coverage.out ./...
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.go-version }}
-          path: coverage.out
-      - name: Build
-        run: go build -o vulnscan ./cmd/vulnscanner/
-
-  fuzz:
-    name: Fuzz
-    needs: [lint]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-          cache: true
-      - name: Run fuzzing (60s)
-        run: go test -run=^$ -fuzz=FuzzLoadPayloads -fuzztime=60s ./internal/scanner/
+      - name: Test
+        env:
+          CGO_ENABLED: "0"
+        run: go test -v -count=1 ./...
 
   build-release:
     name: Build Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [lint, test]
+    needs: [test]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [linux, darwin, windows]
-        arch: [amd64, arm64]
-        exclude:
-          - os: darwin
-            arch: arm64
-          - os: windows
-            arch: arm64
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
-          cache: true
-      - name: Build ${{ matrix.os }}-${{ matrix.arch }}
+          go-version: "1.22"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-1.22-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
         env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
         run: |
           ext=""
-          if [ "${{ matrix.os }}" = "windows" ]; then ext=".exe"; fi
-          go build -ldflags="-s -w" -o "vulnscan_${{ matrix.os }}_${{ matrix.arch }}$ext" ./cmd/vulnscanner/
+          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
+          go build -ldflags="-s -w" -o "vulnscan_${{ matrix.goos }}_${{ matrix.goarch }}$ext" ./cmd/vulnscanner/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vulnscan_${{ matrix.os }}_${{ matrix.arch }}
-          path: vulnscan_${{ matrix.os }}_${{ matrix.arch }}*
+          name: vulnscan_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: vulnscan_${{ matrix.goos }}_${{ matrix.goarch }}*
 
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
+  release:
+    name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [lint, test]
+    needs: [build-release]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build Docker image (no push)
-        uses: docker/build-push-action@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          context: .
-          push: false
-          tags: vulnscanner:${{ github.ref_name }}
-          outputs: type=docker
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/*

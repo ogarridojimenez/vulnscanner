@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ogarridojimenez/vulnscanner/internal/config"
 	"github.com/ogarridojimenez/vulnscanner/internal/models"
+	"github.com/ogarridojimenez/vulnscanner/internal/ratelimit"
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
 	"github.com/ogarridojimenez/vulnscanner/internal/scanner"
 	"github.com/ogarridojimenez/vulnscanner/internal/storage"
@@ -34,18 +35,20 @@ type ScanRequest struct {
 
 // Server wraps the Gin engine and a scan store.
 type Server struct {
-	engine   *gin.Engine
-	store    *storage.SQLiteStore
-	auth     *uiAuth
-	apiToken string
-	startedAt time.Time
-	mu       sync.Mutex
-	scans    map[string]*models.ScanReport
+	engine      *gin.Engine
+	store       *storage.SQLiteStore
+	auth        *uiAuth
+	apiToken    string
+	startedAt   time.Time
+	rateLimiter *ratelimit.Limiter
+	mu          sync.Mutex
+	scans       map[string]*models.ScanReport
 }
 
 // New creates the API server. If uiPassword is non-empty, the web UI is protected.
 // If apiToken is non-empty, API endpoints require Bearer token auth.
-func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server {
+// If rateLimit > 0, API endpoints are rate-limited per IP/token.
+func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLimit int) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
 		engine:    gin.New(),
@@ -54,6 +57,9 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server
 		apiToken:  apiToken,
 		startedAt: time.Now(),
 		scans:     make(map[string]*models.ScanReport),
+	}
+	if rateLimit > 0 {
+		s.rateLimiter = ratelimit.New(rateLimit, time.Minute)
 	}
 	s.engine.Use(gin.Recovery())
 	s.engine.Use(requestLogger())
@@ -85,6 +91,9 @@ func (s *Server) registerRoutes() {
 	if s.apiToken != "" {
 		api.Use(s.requireAPIAuth)
 	}
+	if s.rateLimiter != nil {
+		api.Use(s.rateLimitMiddleware())
+	}
 	{
 		api.POST("/scan", s.handleScan)
 		api.GET("/scans", s.handleList)
@@ -96,6 +105,28 @@ func (s *Server) registerRoutes() {
 }
 
 // requireAPIAuth validates Bearer token from Authorization header.
+func (s *Server) rateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.ClientIP()
+		if s.apiToken != "" {
+			if auth := c.GetHeader("Authorization"); len(auth) > 7 && auth[:7] == "Bearer " {
+				key = "token:" + auth[7:]
+			}
+		}
+		if !s.rateLimiter.Allow(key) {
+			retryAfter := s.rateLimiter.RetryAfter(key)
+			c.Header("Retry-After", fmt.Sprintf("%.0fs", retryAfter.Seconds()))
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "rate limit exceeded",
+				"retry_after": fmt.Sprintf("%.0fs", retryAfter.Seconds()),
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func (s *Server) requireAPIAuth(c *gin.Context) {
 	auth := c.GetHeader("Authorization")
 	if auth == "" || auth != "Bearer "+s.apiToken {

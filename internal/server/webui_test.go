@@ -15,7 +15,7 @@ func TestWebUIRoutes(t *testing.T) {
 	}
 	defer store.Close()
 
-	srv := New(store, "", "")
+	srv := New(store, "", "", 0)
 	r := srv.engine
 
 	routes := []struct {

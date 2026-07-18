@@ -1,0 +1,33 @@
+# Build artifacts
+vulnscan
+*.exe
+*.test
+*.out
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+constitution/
+spec/
+docs/
+*.md
+
+# Test data
+vulnscan.db
+vulnscanner.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/

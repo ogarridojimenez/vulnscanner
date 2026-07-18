@@ -17,7 +17,7 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 	defer store.Close()
 
-	srv := New(store, "", "")
+	srv := New(store, "", "", 0)
 	r := srv.engine
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/health", nil)
@@ -47,7 +47,7 @@ func TestScanEnqueue(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	defer store.Close()
-	srv := New(store, "", "")
+	srv := New(store, "", "", 0)
 	r := srv.engine
 	body := `{"target":"http://testphp.vulnweb.com","modules":["headers"]}`
 	w := httptest.NewRecorder()
@@ -66,7 +66,7 @@ func TestAPIAuthRequired(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	defer store.Close()
-	srv := New(store, "", "my-secret-token")
+	srv := New(store, "", "my-secret-token", 0)
 	r := srv.engine
 
 	// No token → 401
@@ -102,7 +102,7 @@ func TestAPIAuthDisabled(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	defer store.Close()
-	srv := New(store, "", "") // no apiToken
+	srv := New(store, "", "", 0) // no apiToken
 	r := srv.engine
 
 	// No token → 200 (auth disabled)

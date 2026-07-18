@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  vulnscanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vulnscanner
+    ports:
+      - "8080:8080"
+    volumes:
+      - vulnscan-data:/app
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/vulnscan", "--help"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  vulnscan-data:
+    driver: local

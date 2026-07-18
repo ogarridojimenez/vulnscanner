@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "VulnScanner",
+          "informationUri": "https://github.com/ogarridojimenez/vulnscanner",
+          "version": "1.0.0",
+          "rules": [
+            {
+              "id": "cookies-Missing Secure",
+              "shortDescription": {
+                "text": "Missing Secure"
+              },
+              "fullDescription": {
+                "text": "cookie sin Secure"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "cookies-Missing Secure",
+          "level": "warning",
+          "message": {
+            "text": "cookie sin Secure | Recommendation: set Secure"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://example.com"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
