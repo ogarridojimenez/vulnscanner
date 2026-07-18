@@ -32,21 +32,24 @@ type ScanRequest struct {
 
 // Server wraps the Gin engine and a scan store.
 type Server struct {
-	engine *gin.Engine
-	store  *storage.SQLiteStore
-	auth   *uiAuth
-	mu     sync.Mutex
-	scans  map[string]*models.ScanReport
+	engine  *gin.Engine
+	store   *storage.SQLiteStore
+	auth    *uiAuth
+	apiToken string
+	mu      sync.Mutex
+	scans   map[string]*models.ScanReport
 }
 
 // New creates the API server. If uiPassword is non-empty, the web UI is protected.
-func New(store *storage.SQLiteStore, uiPassword string) *Server {
+// If apiToken is non-empty, API endpoints require Bearer token auth.
+func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
-		engine: gin.New(),
-		store:  store,
-		auth:   newUIAuth(uiPassword),
-		scans:  make(map[string]*models.ScanReport),
+		engine:   gin.New(),
+		store:    store,
+		auth:     newUIAuth(uiPassword),
+		apiToken: apiToken,
+		scans:    make(map[string]*models.ScanReport),
 	}
 	s.engine.Use(gin.Recovery())
 	s.registerRoutes()
@@ -57,9 +60,6 @@ func (s *Server) registerRoutes() {
 	s.engine.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 	})
-	s.engine.POST("/api/scan", s.handleScan)
-	s.engine.GET("/api/scans", s.handleList)
-	s.engine.GET("/api/scans/:id", s.handleGet)
 
 	// Auth (Feature 009)
 	s.engine.GET("/login", s.auth.loginPage)
@@ -75,6 +75,27 @@ func (s *Server) registerRoutes() {
 		ui.GET("/scan/new", s.serveApp)
 		ui.GET("/scan/:id", s.serveApp)
 	}
+
+	// API (Feature 010) — protected by requireAPIAuth if token set
+	api := s.engine.Group("/api")
+	if s.apiToken != "" {
+		api.Use(s.requireAPIAuth)
+	}
+	{
+		api.POST("/scan", s.handleScan)
+		api.GET("/scans", s.handleList)
+		api.GET("/scans/:id", s.handleGet)
+	}
+}
+
+// requireAPIAuth validates Bearer token from Authorization header.
+func (s *Server) requireAPIAuth(c *gin.Context) {
+	auth := c.GetHeader("Authorization")
+	if auth == "" || auth != "Bearer "+s.apiToken {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	c.Next()
 }
 
 func (s *Server) serveLanding(c *gin.Context) {

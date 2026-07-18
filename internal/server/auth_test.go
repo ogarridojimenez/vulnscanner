@@ -16,7 +16,7 @@ func TestUIAuthEnabled(t *testing.T) {
 	}
 	defer store.Close()
 
-	srv := New(store, "secret")
+	srv := New(store, "secret", "")
 	r := srv.engine
 
 	// Dashboard without cookie -> redirect to /login
@@ -78,7 +78,7 @@ func TestUIAuthDisabled(t *testing.T) {
 	}
 	defer store.Close()
 
-	srv := New(store, "")
+	srv := New(store, "", "")
 	r := srv.engine
 
 	w := httptest.NewRecorder()
