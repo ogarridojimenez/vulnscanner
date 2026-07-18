@@ -26,12 +26,18 @@ func TestHealthEndpoint(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("health status: %d", w.Code)
 	}
-	var resp map[string]string
+	var resp map[string]interface{}
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if resp["status"] != "ok" {
 		t.Errorf("status field: %q", resp["status"])
+	}
+	if resp["uptime"] == nil || resp["uptime"] == "" {
+		t.Error("missing uptime")
+	}
+	if resp["db_status"] != "ok" {
+		t.Errorf("db_status: %q", resp["db_status"])
 	}
 }
 

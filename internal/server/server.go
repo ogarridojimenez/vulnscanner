@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -37,6 +38,7 @@ type Server struct {
 	store    *storage.SQLiteStore
 	auth     *uiAuth
 	apiToken string
+	startedAt time.Time
 	mu       sync.Mutex
 	scans    map[string]*models.ScanReport
 }
@@ -46,11 +48,12 @@ type Server struct {
 func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
-		engine:   gin.New(),
-		store:    store,
-		auth:     newUIAuth(uiPassword),
-		apiToken: apiToken,
-		scans:    make(map[string]*models.ScanReport),
+		engine:    gin.New(),
+		store:     store,
+		auth:      newUIAuth(uiPassword),
+		apiToken:  apiToken,
+		startedAt: time.Now(),
+		scans:     make(map[string]*models.ScanReport),
 	}
 	s.engine.Use(gin.Recovery())
 	s.engine.Use(requestLogger())
@@ -59,9 +62,8 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server
 }
 
 func (s *Server) registerRoutes() {
-	s.engine.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Format(time.RFC3339)})
-	})
+	s.engine.GET("/health", s.handleHealth)
+	s.engine.GET("/metrics", s.handleMetrics)
 
 	// Auth (Feature 009)
 	s.engine.GET("/login", s.auth.loginPage)
@@ -229,6 +231,58 @@ func (s *Server) Run(addr string) error {
 	}
 	slog.Info("server stopped")
 	return nil
+}
+
+func (s *Server) handleHealth(c *gin.Context) {
+	dbStatus := "ok"
+	if err := s.store.Health(); err != nil {
+		dbStatus = err.Error()
+	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	totalScans := 0
+	if s.store != nil {
+		if n, err := s.store.Count(); err == nil {
+			totalScans = n
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":    "ok",
+		"uptime":    time.Since(s.startedAt).String(),
+		"db_status": dbStatus,
+		"memory": gin.H{
+			"alloc_mb":      fmt.Sprintf("%.1f", float64(m.Alloc)/1024/1024),
+			"sys_mb":        fmt.Sprintf("%.1f", float64(m.Sys)/1024/1024),
+			"gc_cycles":     m.NumGC,
+		},
+		"total_scans": totalScans,
+		"scans_in_memory": len(s.scans),
+		"api_auth":    s.apiToken != "",
+	})
+}
+
+func (s *Server) handleMetrics(c *gin.Context) {
+	totalScans := 0
+	if s.store != nil {
+		if n, err := s.store.Count(); err == nil {
+			totalScans = n
+		}
+	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	c.JSON(http.StatusOK, gin.H{
+		"uptime_seconds": time.Since(s.startedAt).Seconds(),
+		"total_scans":    totalScans,
+		"scans_in_memory": len(s.scans),
+		"memory_alloc_bytes": m.Alloc,
+		"memory_sys_bytes":   m.Sys,
+		"gc_cycles":          m.NumGC,
+	})
 }
 
 // requestLogger returns a Gin middleware that logs each request with slog.
