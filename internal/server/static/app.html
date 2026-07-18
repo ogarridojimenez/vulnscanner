@@ -54,7 +54,17 @@
       <h1>Dashboard de Escaneos</h1>
       <a href="/scan/new" class="btn">+ Nuevo Escaneo</a>
     </div>
+    <div class="card" style="display:flex;gap:12px;align-items:end;">
+      <div style="flex:1"><label>Buscar target</label><input id="filter-target" placeholder="filtrar por target..."></div>
+      <div style="width:160px"><label>Estado</label>
+        <select id="filter-status"><option value="">Todos</option><option value="completed">Completado</option><option value="queued">En cola</option></select>
+      </div>
+      <div style="width:100px"><label>Por página</label>
+        <select id="page-size"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select>
+      </div>
+    </div>
     <div id="scans-list"></div>
+    <div id="pagination" style="margin-top:12px;text-align:center;"></div>
   </div>
 
   <!-- NEW SCAN -->
@@ -106,12 +116,26 @@
 const pages = ['dashboard','scan-new','scan-detail'];
 function show(id){ pages.forEach(p=>document.getElementById(p).classList.toggle('hidden', p!==id)); }
 
-async function loadScans(){
-  const r = await fetch('/api/scans');
-  const data = await r.json();
+let allScans = [];
+let currentPage = 1;
+
+function applyFilters(){
+  const target = document.getElementById('filter-target').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  const pageSize = parseInt(document.getElementById('page-size').value);
+  let filtered = allScans.filter(s => {
+    if(target && !s.target.toLowerCase().includes(target)) return false;
+    if(status && s.status !== status) return false;
+    return true;
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if(currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * pageSize;
+  const page = filtered.slice(start, start + pageSize);
+
   const el = document.getElementById('scans-list');
-  if(!data.scans.length){ el.innerHTML='<p style="color:var(--muted)">No hay escaneos aún.</p>'; return; }
-  let rows = data.scans.map(s=>`
+  if(!page.length){ el.innerHTML='<p style="color:var(--muted)">Sin resultados.</p>'; return; }
+  let rows = page.map(s=>`
     <tr>
       <td><a class="link" href="/scan/${s.id}">${s.id}</a></td>
       <td>${s.target}</td>
@@ -119,6 +143,31 @@ async function loadScans(){
       <td><span class="status status-${s.status}">${s.status}</span></td>
     </tr>`).join('');
   el.innerHTML = `<table><tr><th>ID</th><th>Target</th><th>Findings</th><th>Estado</th></tr>${rows}</table>`;
+
+  // Pagination
+  const pg = document.getElementById('pagination');
+  if(totalPages <= 1){ pg.innerHTML=''; return; }
+  let btns = '';
+  if(currentPage > 1) btns += `<button onclick="goPage(${currentPage-1})" class="btn" style="padding:6px 12px;margin:0 4px;">←</button>`;
+  for(let i=1;i<=totalPages;i++){
+    const active = i===currentPage ? 'style="background:#1f6feb;"' : '';
+    btns += `<button onclick="goPage(${i})" class="btn" ${active} style="padding:6px 12px;margin:0 4px;">${i}</button>`;
+  }
+  if(currentPage < totalPages) btns += `<button onclick="goPage(${currentPage+1})" class="btn" style="padding:6px 12px;margin:0 4px;">→</button>`;
+  pg.innerHTML = btns;
+}
+function goPage(p){ currentPage=p; applyFilters(); }
+
+document.getElementById('filter-target').addEventListener('input', ()=>{ currentPage=1; applyFilters(); });
+document.getElementById('filter-status').addEventListener('change', ()=>{ currentPage=1; applyFilters(); });
+document.getElementById('page-size').addEventListener('change', ()=>{ currentPage=1; applyFilters(); });
+
+async function loadScans(){
+  const r = await fetch('/api/scans');
+  const data = await r.json();
+  allScans = data.scans || [];
+  currentPage = 1;
+  applyFilters();
 }
 
 document.getElementById('scan-form').addEventListener('submit', async (e)=>{
