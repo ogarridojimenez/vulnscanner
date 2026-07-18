@@ -7,14 +7,17 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/fatih/color v1.19.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/ncruces/go-sqlite3 v0.35.2
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
@@ -22,12 +25,13 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
+	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
@@ -46,9 +50,9 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.39.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )

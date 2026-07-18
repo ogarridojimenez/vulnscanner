@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ogarridojimenez/vulnscanner/internal/config"
 	"github.com/ogarridojimenez/vulnscanner/internal/jwtauth"
+	"github.com/ogarridojimenez/vulnscanner/internal/ldapauth"
 	"github.com/ogarridojimenez/vulnscanner/internal/models"
 	"github.com/ogarridojimenez/vulnscanner/internal/ratelimit"
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
@@ -43,6 +44,7 @@ type Server struct {
 	auth        *uiAuth
 	apiToken    string
 	jwtManager  *jwtauth.JWTManager
+	ldapClient  *ldapauth.Client
 	hub         *ws.Hub
 	startedAt   time.Time
 	rateLimiter *ratelimit.Limiter
@@ -54,16 +56,17 @@ type Server struct {
 // If apiToken is non-empty, API endpoints require Bearer token auth.
 // If rateLimit > 0, API endpoints are rate-limited per IP/token.
 // If jwtSecret is non-empty, JWT auth is enabled (replaces static token).
-func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLimit int, jwtSecret string) *Server {
+func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLimit int, jwtSecret string, ldapClient *ldapauth.Client) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
-		engine:    gin.New(),
-		store:     store,
-		auth:      newUIAuth(uiPassword),
-		apiToken:  apiToken,
-		startedAt: time.Now(),
-		hub:       ws.NewHub(),
-		scans:     make(map[string]*models.ScanReport),
+		engine:     gin.New(),
+		store:      store,
+		auth:       newUIAuth(uiPassword),
+		apiToken:   apiToken,
+		ldapClient: ldapClient,
+		startedAt:  time.Now(),
+		hub:        ws.NewHub(),
+		scans:      make(map[string]*models.ScanReport),
 	}
 	if jwtSecret != "" {
 		s.jwtManager = jwtauth.New(jwtSecret, 15, 7)
@@ -121,6 +124,10 @@ func (s *Server) registerRoutes() {
 	if s.jwtManager != nil {
 		s.engine.POST("/api/auth/login", s.handleJWTLogin)
 		s.engine.POST("/api/auth/refresh", s.handleJWTRefresh)
+	}
+	// LDAP Auth endpoint (Feature 023)
+	if s.ldapClient != nil {
+		s.engine.POST("/api/auth/ldap", s.handleLDAPLogin)
 	}
 }
 
@@ -229,6 +236,44 @@ func (s *Server) handleJWTRefresh(c *gin.Context) {
 		"access_token": access,
 		"token_type":   "Bearer",
 		"expires_in":   900,
+	})
+}
+
+func (s *Server) handleLDAPLogin(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	result, err := s.ldapClient.Authenticate(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ldap authentication failed"})
+		return
+	}
+
+	access, err := s.jwtManager.GenerateAccess(result.DisplayName, result.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+	refresh, err := s.jwtManager.GenerateRefresh(result.DisplayName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"token_type":    "Bearer",
+		"expires_in":    900,
+		"display_name":  result.DisplayName,
+		"email":         result.Email,
+		"role":          result.Role,
 	})
 }
 
