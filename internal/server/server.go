@@ -1,9 +1,14 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -168,7 +173,34 @@ func (s *Server) handleGet(c *gin.Context) {
 	c.JSON(http.StatusOK, rep)
 }
 
-// Run starts the HTTP server (blocking).
+// Run starts the HTTP server with graceful shutdown.
 func (s *Server) Run(addr string) error {
-	return s.engine.Run(addr)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: s.engine,
+	}
+
+	// Start server in goroutine
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			fmt.Printf("[server] listen error: %v\n", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	fmt.Println("\n[server] shutting down...")
+
+	// Graceful shutdown with 5s timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		fmt.Printf("[server] forced shutdown: %v\n", err)
+		return err
+	}
+	fmt.Println("[server] stopped gracefully")
+	return nil
 }

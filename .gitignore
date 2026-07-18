@@ -2,7 +2,12 @@
 vulnscan
 vulnscan.exe
 vulnscan.exe~
+*.exe
+
+# Database
 *.db
+*.db-wal
+*.db-shm
 
 # Test/scan artifacts
 api_*.json
@@ -12,7 +17,15 @@ scheduled_*.json
 
 # Temp
 /tmp/
+*.tmp
+*.bak
 
-# SQLite WAL/SHM
-*.db-wal
-*.db-shm
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
