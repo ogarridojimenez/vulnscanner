@@ -22,6 +22,7 @@ import (
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
 	"github.com/ogarridojimenez/vulnscanner/internal/scanner"
 	"github.com/ogarridojimenez/vulnscanner/internal/storage"
+	"github.com/ogarridojimenez/vulnscanner/internal/ws"
 )
 
 // ScanRequest is the API payload to enqueue a scan.
@@ -42,6 +43,7 @@ type Server struct {
 	auth        *uiAuth
 	apiToken    string
 	jwtManager  *jwtauth.JWTManager
+	hub         *ws.Hub
 	startedAt   time.Time
 	rateLimiter *ratelimit.Limiter
 	mu          sync.Mutex
@@ -60,6 +62,7 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLim
 		auth:      newUIAuth(uiPassword),
 		apiToken:  apiToken,
 		startedAt: time.Now(),
+		hub:       ws.NewHub(),
 		scans:     make(map[string]*models.ScanReport),
 	}
 	if jwtSecret != "" {
@@ -77,6 +80,7 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLim
 func (s *Server) registerRoutes() {
 	s.engine.GET("/health", s.handleHealth)
 	s.engine.GET("/metrics", s.handleMetrics)
+	s.engine.GET("/ws", s.handleWebSocket)
 
 	// Auth (Feature 009)
 	s.engine.GET("/login", s.auth.loginPage)
@@ -306,6 +310,20 @@ func (s *Server) handleScan(c *gin.Context) {
 		}
 		_ = reporter.JSONReport(rep, fmt.Sprintf("api_%s.json", reportID))
 		slog.Info("scan completed", "id", reportID, "target", req.Target, "findings", len(results))
+
+		// Broadcast scan completed event via WebSocket
+		s.hub.Broadcast(ws.Event{
+			Type: "scan.completed",
+			Payload: map[string]any{
+				"id":          reportID,
+				"target":      req.Target,
+				"findings":    len(results),
+				"high":        rep.Summary.High,
+				"medium":      rep.Summary.Medium,
+				"low":         rep.Summary.Low,
+				"info":        rep.Summary.Info,
+			},
+		})
 	}()
 
 	c.JSON(http.StatusAccepted, gin.H{"scan_id": reportID, "status": "queued"})
@@ -467,6 +485,10 @@ func (s *Server) Run(addr string) error {
 	}
 	slog.Info("server stopped")
 	return nil
+}
+
+func (s *Server) handleWebSocket(c *gin.Context) {
+	s.hub.HandleWS(c.Writer, c.Request)
 }
 
 func (s *Server) handleHealth(c *gin.Context) {
