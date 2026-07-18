@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/ogarridojimenez/vulnscanner/internal/logger"
 	"github.com/ogarridojimenez/vulnscanner/internal/server"
 	"github.com/ogarridojimenez/vulnscanner/internal/storage"
 	"github.com/spf13/cobra"
@@ -16,6 +17,8 @@ var serveCmd = &cobra.Command{
 		dbPath, _ := cmd.Flags().GetString("db")
 		uiPass, _ := cmd.Flags().GetString("ui-password")
 		apiToken, _ := cmd.Flags().GetString("api-token")
+		logLevel, _ := cmd.Flags().GetString("log-level")
+		logger.Setup(logLevel)
 		store := storage.NewSQLiteStore(dbPath)
 		if err := store.Init(); err != nil {
 			return fmt.Errorf("storage init: %w", err)
@@ -38,5 +41,6 @@ func init() {
 	serveCmd.Flags().String("db", "vulnscanner.db", "SQLite database path")
 	serveCmd.Flags().String("ui-password", "", "password to protect the web UI (empty = open)")
 	serveCmd.Flags().String("api-token", "", "Bearer token for API auth (empty = open)")
+	serveCmd.Flags().String("log-level", "info", "log level: debug, info, warn, error")
 	rootCmd.AddCommand(serveCmd)
 }

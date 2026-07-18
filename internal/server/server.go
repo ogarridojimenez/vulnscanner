@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,12 +33,12 @@ type ScanRequest struct {
 
 // Server wraps the Gin engine and a scan store.
 type Server struct {
-	engine  *gin.Engine
-	store   *storage.SQLiteStore
-	auth    *uiAuth
+	engine   *gin.Engine
+	store    *storage.SQLiteStore
+	auth     *uiAuth
 	apiToken string
-	mu      sync.Mutex
-	scans   map[string]*models.ScanReport
+	mu       sync.Mutex
+	scans    map[string]*models.ScanReport
 }
 
 // New creates the API server. If uiPassword is non-empty, the web UI is protected.
@@ -52,6 +53,7 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string) *Server
 		scans:    make(map[string]*models.ScanReport),
 	}
 	s.engine.Use(gin.Recovery())
+	s.engine.Use(requestLogger())
 	s.registerRoutes()
 	return s
 }
@@ -143,7 +145,7 @@ func (s *Server) handleScan(c *gin.Context) {
 		sc := scanner.New(cfg)
 		results, modulesRun, err := sc.Run(req.Target)
 		if err != nil {
-			fmt.Printf("[api] scan error: %v\n", err)
+			slog.Error("scan failed", "id", reportID, "target", req.Target, "error", err)
 			return
 		}
 		rep := &models.ScanReport{
@@ -167,6 +169,7 @@ func (s *Server) handleScan(c *gin.Context) {
 			fmtVal = "json"
 		}
 		_ = reporter.JSONReport(rep, fmt.Sprintf("api_%s.json", reportID))
+		slog.Info("scan completed", "id", reportID, "target", req.Target, "findings", len(results))
 	}()
 
 	c.JSON(http.StatusAccepted, gin.H{"scan_id": reportID, "status": "queued"})
@@ -204,24 +207,41 @@ func (s *Server) Run(addr string) error {
 	// Start server in goroutine
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			fmt.Printf("[server] listen error: %v\n", err)
+			slog.Error("listen failed", "addr", addr, "error", err)
 		}
 	}()
+
+	slog.Info("server started", "addr", addr)
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("\n[server] shutting down...")
+	slog.Info("shutting down...")
 
 	// Graceful shutdown with 5s timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		fmt.Printf("[server] forced shutdown: %v\n", err)
+		slog.Error("forced shutdown", "error", err)
 		return err
 	}
-	fmt.Println("[server] stopped gracefully")
+	slog.Info("server stopped")
 	return nil
+}
+
+// requestLogger returns a Gin middleware that logs each request with slog.
+func requestLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		slog.Info("request",
+			"method", c.Request.Method,
+			"path", c.Request.URL.Path,
+			"status", c.Writer.Status(),
+			"latency", time.Since(start).String(),
+			"client", c.ClientIP(),
+		)
+	}
 }
