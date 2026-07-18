@@ -8,6 +8,7 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-pdf/fpdf v0.9.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/ncruces/go-sqlite3 v0.35.2
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1

@@ -18,7 +18,7 @@ func TestE2EScanComplete(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	defer store.Close()
-	srv := New(store, "", "", 0)
+	srv := New(store, "", "", 0, "")
 	r := srv.engine
 
 	// Start a local target server

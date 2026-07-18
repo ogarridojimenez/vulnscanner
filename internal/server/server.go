@@ -9,12 +9,14 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ogarridojimenez/vulnscanner/internal/config"
+	"github.com/ogarridojimenez/vulnscanner/internal/jwtauth"
 	"github.com/ogarridojimenez/vulnscanner/internal/models"
 	"github.com/ogarridojimenez/vulnscanner/internal/ratelimit"
 	"github.com/ogarridojimenez/vulnscanner/internal/reporter"
@@ -39,6 +41,7 @@ type Server struct {
 	store       *storage.SQLiteStore
 	auth        *uiAuth
 	apiToken    string
+	jwtManager  *jwtauth.JWTManager
 	startedAt   time.Time
 	rateLimiter *ratelimit.Limiter
 	mu          sync.Mutex
@@ -48,7 +51,8 @@ type Server struct {
 // New creates the API server. If uiPassword is non-empty, the web UI is protected.
 // If apiToken is non-empty, API endpoints require Bearer token auth.
 // If rateLimit > 0, API endpoints are rate-limited per IP/token.
-func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLimit int) *Server {
+// If jwtSecret is non-empty, JWT auth is enabled (replaces static token).
+func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLimit int, jwtSecret string) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	s := &Server{
 		engine:    gin.New(),
@@ -57,6 +61,9 @@ func New(store *storage.SQLiteStore, uiPassword string, apiToken string, rateLim
 		apiToken:  apiToken,
 		startedAt: time.Now(),
 		scans:     make(map[string]*models.ScanReport),
+	}
+	if jwtSecret != "" {
+		s.jwtManager = jwtauth.New(jwtSecret, 15, 7)
 	}
 	if rateLimit > 0 {
 		s.rateLimiter = ratelimit.New(rateLimit, time.Minute)
@@ -88,7 +95,9 @@ func (s *Server) registerRoutes() {
 
 	// API (Feature 010) — protected by requireAPIAuth if token set
 	api := s.engine.Group("/api")
-	if s.apiToken != "" {
+	if s.jwtManager != nil {
+		api.Use(s.requireJWTAuth())
+	} else if s.apiToken != "" {
 		api.Use(s.requireAPIAuth)
 	}
 	if s.rateLimiter != nil {
@@ -101,6 +110,12 @@ func (s *Server) registerRoutes() {
 		api.POST("/import", s.handleImport)
 		api.GET("/scans/diff/:id1/:id2", s.handleDiff)
 		api.GET("/scans/:id", s.handleGet)
+	}
+
+	// JWT Auth endpoints (Feature 021)
+	if s.jwtManager != nil {
+		s.engine.POST("/api/auth/login", s.handleJWTLogin)
+		s.engine.POST("/api/auth/refresh", s.handleJWTRefresh)
 	}
 }
 
@@ -125,6 +140,91 @@ func (s *Server) rateLimitMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (s *Server) requireJWTAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		auth := c.GetHeader("Authorization")
+		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid authorization header"})
+			c.Abort()
+			return
+		}
+		tokenString := auth[7:]
+		claims, err := s.jwtManager.Validate(tokenString)
+		if err != nil {
+			status := http.StatusUnauthorized
+			if errors.Is(err, jwtauth.ErrTokenExpired) {
+				c.JSON(status, gin.H{"error": "token expired", "code": "TOKEN_EXPIRED"})
+			} else {
+				c.JSON(status, gin.H{"error": "invalid token"})
+			}
+			c.Abort()
+			return
+		}
+		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
+		c.Next()
+	}
+}
+
+type loginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func (s *Server) handleJWTLogin(c *gin.Context) {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	// Simple validation (in production, use DB)
+	if req.Username == "" || req.Password == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+	access, err := s.jwtManager.GenerateAccess(req.Username, "user")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+	refresh, err := s.jwtManager.GenerateRefresh(req.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"token_type":    "Bearer",
+		"expires_in":    900, // 15 minutes
+	})
+}
+
+func (s *Server) handleJWTRefresh(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	claims, err := s.jwtManager.ValidateRefresh(req.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+	access, err := s.jwtManager.GenerateAccess(claims.Subject, "user")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": access,
+		"token_type":   "Bearer",
+		"expires_in":   900,
+	})
 }
 
 func (s *Server) requireAPIAuth(c *gin.Context) {

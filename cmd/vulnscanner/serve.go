@@ -19,13 +19,14 @@ var serveCmd = &cobra.Command{
 		apiToken, _ := cmd.Flags().GetString("api-token")
 		logLevel, _ := cmd.Flags().GetString("log-level")
 		rateLimit, _ := cmd.Flags().GetInt("rate-limit")
+		jwtSecret, _ := cmd.Flags().GetString("jwt-secret")
 		logger.Setup(logLevel)
 		store := storage.NewSQLiteStore(dbPath)
 		if err := store.Init(); err != nil {
 			return fmt.Errorf("storage init: %w", err)
 		}
 		defer store.Close()
-		srv := server.New(store, uiPass, apiToken, rateLimit)
+		srv := server.New(store, uiPass, apiToken, rateLimit, jwtSecret)
 		if uiPass != "" {
 			fmt.Println("UI auth enabled (password protected)")
 		}
@@ -47,5 +48,6 @@ func init() {
 	serveCmd.Flags().String("api-token", "", "Bearer token for API auth (empty = open)")
 	serveCmd.Flags().String("log-level", "info", "log level: debug, info, warn, error")
 	serveCmd.Flags().Int("rate-limit", 0, "max requests per minute per IP (0 = disabled)")
+	serveCmd.Flags().String("jwt-secret", "", "JWT signing secret (empty = disabled, uses static token instead)")
 	rootCmd.AddCommand(serveCmd)
 }
