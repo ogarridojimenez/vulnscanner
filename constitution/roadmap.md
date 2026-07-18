@@ -67,30 +67,30 @@
 - [x] Log de findings por scan
 - [x] Flag --log-level en serve
 
-## Fase 12: Health checks + métricas ⏳
-- [ ] GET /health detallado (DB status, uptime, memory)
-- [ ] Contadores: scans completados, findings totales
-- [ ] Prometheus metrics endpoint (opcional)
+## Fase 12: Health checks + métricas ✅
+- [x] GET /health detallado (DB status, uptime, memory)
+- [x] Contadores: scans completados, findings totales
+- [x] Prometheus metrics endpoint (opcional)
 
-## Fase 13: Tests E2E ⏳
-- [ ] Test completo: scan → storage → report
-- [ ] Test multi-target end-to-end
-- [ ] Test API con curl assertions
+## Fase 13: Tests E2E ✅
+- [x] Test completo: scan → storage → report
+- [x] Test multi-target end-to-end
+- [x] Test API con curl assertions
 
-## Fase 14: Export/import DB ⏳
-- [ ] `vulnscan db export` → JSON
-- [ ] `vulnscan db import` ← JSON
-- [ ] Backup automático al iniciar
+## Fase 14: Export/import DB ✅
+- [x] `vulnscan db export` → JSON
+- [x] `vulnscan db import` ← JSON
+- [x] Backup automático al iniciar
 
-## Fase 15: Web UI mejoras ⏳
-- [ ] Filtros por severidad/módulo en dashboard
-- [ ] Paginación (>10 scans)
-- [ ] Búsqueda por target
+## Fase 15: Web UI mejoras ✅
+- [x] Filtros por severidad/módulo en dashboard
+- [x] Paginación (>10 scans)
+- [x] Búsqueda por target
 
-## Fase 16: Comparación de escaneos ⏳
-- [ ] Selección de 2 escaneos
-- [ ] Diff de findings (nuevos/resueltos)
-- [ ] Reporte comparativo
+## Fase 16: Comparación de escaneos ✅
+- [x] Selección de 2 escaneos
+- [x] Diff de findings (nuevos/resueltos)
+- [x] Reporte comparativo
 
 ## Estado final
 **TODAS LAS FASES COMPLETAS** — VulnScanner es production-ready.
