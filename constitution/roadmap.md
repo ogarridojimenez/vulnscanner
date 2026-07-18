@@ -92,5 +92,17 @@
 - [x] Diff de findings (nuevos/resueltos)
 - [x] Reporte comparativo
 
-## Estado final
-**TODAS LAS FASES COMPLETAS** — VulnScanner es production-ready.
+## Estado
+**Fases 1-16 completas.** Features 017-023 en backlog (specs listos).
+
+## Backlog 🔜
+
+| # | Feature | Estado | Complejidad |
+|---|---------|--------|-------------|
+| 017 | Rate Limiting API | spec ✅ | Baja |
+| 018 | WebSocket Real-time | spec ✅ | Media |
+| 019 | Docker/Dockerfile | spec ✅ | Baja |
+| 020 | CI/CD GitHub Actions | spec ✅ | Baja |
+| 021 | JWT Authentication | spec ✅ | Media |
+| 022 | Dashboard Stats Charts | spec ✅ | Media |
+| 023 | OAuth/LDAP Login | spec ✅ | Alta |
