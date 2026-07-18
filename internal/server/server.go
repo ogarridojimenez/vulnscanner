@@ -88,9 +88,10 @@ func (s *Server) registerRoutes() {
 	{
 		api.POST("/scan", s.handleScan)
 		api.GET("/scans", s.handleList)
-		api.GET("/scans/:id", s.handleGet)
 		api.POST("/export", s.handleExport)
 		api.POST("/import", s.handleImport)
+		api.GET("/scans/diff/:id1/:id2", s.handleDiff)
+		api.GET("/scans/:id", s.handleGet)
 	}
 }
 
@@ -254,6 +255,53 @@ func (s *Server) handleImport(c *gin.Context) {
 		imported++
 	}
 	c.JSON(http.StatusOK, gin.H{"imported": imported})
+}
+
+func (s *Server) handleDiff(c *gin.Context) {
+	id1 := c.Param("id1")
+	id2 := c.Param("id2")
+
+	s.mu.Lock()
+	r1, ok1 := s.scans[id1]
+	r2, ok2 := s.scans[id2]
+	s.mu.Unlock()
+
+	if !ok1 || !ok2 {
+		missing := ""
+		if !ok1 { missing = id1 }
+		if !ok2 { missing = id2 }
+		c.JSON(http.StatusNotFound, gin.H{"error": "scan not found", "missing": missing})
+		return
+	}
+
+	// Compare findings by name
+	names1 := make(map[string]bool)
+	names2 := make(map[string]bool)
+	for _, f := range r1.Results { names1[f.Name] = true }
+	for _, f := range r2.Results { names2[f.Name] = true }
+
+	var added, removed, kept []string
+	for name := range names2 {
+		if !names1[name] {
+			added = append(added, name)
+		} else {
+			kept = append(kept, name)
+		}
+	}
+	for name := range names1 {
+		if !names2[name] {
+			removed = append(removed, name)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"scan1":      gin.H{"id": id1, "target": r1.Target, "findings": len(r1.Results)},
+		"scan2":      gin.H{"id": id2, "target": r2.Target, "findings": len(r2.Results)},
+		"added":      added,
+		"removed":    removed,
+		"kept":       kept,
+		"summary":    gin.H{"new": len(added), "fixed": len(removed), "unchanged": len(kept)},
+	})
 }
 
 // Run starts the HTTP server with graceful shutdown.

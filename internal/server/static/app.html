@@ -108,7 +108,15 @@
   <div id="scan-detail" class="hidden">
     <h1 id="detail-title">Detalle</h1>
     <div id="detail-body"></div>
-    <a href="/dashboard" class="link">← Volver al dashboard</a>
+    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+      <a href="/dashboard" class="link">← Volver al dashboard</a>
+      <div id="compare-section" class="hidden" style="display:inline-flex;gap:8px;align-items:center;">
+        <span style="color:var(--muted)">Comparar con:</span>
+        <select id="compare-target" style="width:300px;"></select>
+        <button onclick="runCompare()" class="btn" style="padding:6px 14px;">Comparar</button>
+      </div>
+    </div>
+    <div id="diff-result" class="hidden card" style="margin-top:16px;"></div>
   </div>
 </div>
 
@@ -189,7 +197,10 @@ document.getElementById('scan-form').addEventListener('submit', async (e)=>{
   setTimeout(()=>{ show('dashboard'); loadScans(); }, 1500);
 });
 
+let currentScanId = null;
+
 async function loadDetail(id){
+  currentScanId = id;
   const r = await fetch('/api/scans/'+id);
   if(!r.ok){ document.getElementById('detail-body').innerHTML='<p>No encontrado</p>'; return; }
   const rep = await r.json();
@@ -219,6 +230,38 @@ async function loadDetail(id){
     }).join('');
   }
   document.getElementById('detail-body').innerHTML = summary + findings;
+
+  // Populate compare dropdown
+  const allR = await fetch('/api/scans');
+  const allD = await allR.json();
+  const sel = document.getElementById('compare-target');
+  sel.innerHTML = (allD.scans||[]).filter(s=>s.id!==id).map(s=>`<option value="${s.id}">${s.id} — ${s.target}</option>`).join('');
+  document.getElementById('compare-section').classList.toggle('hidden', allD.scans.length <= 1);
+  document.getElementById('diff-result').classList.add('hidden');
+}
+
+async function runCompare(){
+  const id2 = document.getElementById('compare-target').value;
+  if(!id2 || !currentScanId) return;
+  const r = await fetch(`/api/scans/diff/${currentScanId}/${id2}`);
+  const d = await r.json();
+  const el = document.getElementById('diff-result');
+  el.classList.remove('hidden');
+
+  const added = (d.added||[]).map(n=>`<li style="color:#f85149">+ ${n}</li>`).join('');
+  const removed = (d.removed||[]).map(n=>`<li style="color:#2ea043">- ${n}</li>`).join('');
+  const kept = (d.kept||[]).map(n=>`<li style="color:var(--muted)">  ${n}</li>`).join('');
+
+  el.innerHTML = `
+    <h3>Comparación: ${d.scan1.id} → ${d.scan2.id}</h3>
+    <p><strong>${d.scan1.target}</strong> (${d.scan1.findings}) → <strong>${d.scan2.target}</strong> (${d.scan2.findings})</p>
+    <p style="margin-top:10px;"><span style="color:#f85149">Nuevos:</span> ${d.summary.new} |
+       <span style="color:#2ea043">Corregidos:</span> ${d.summary.fixed} |
+       Sin cambios: ${d.summary.unchanged}</p>
+    ${added ? '<h4 style="margin-top:12px;color:#f85149">+ Nuevos hallazgos</h4><ul>'+added+'</ul>' : ''}
+    ${removed ? '<h4 style="color:#2ea043">- Hallazgos corregidos</h4><ul>'+removed+'</ul>' : ''}
+    ${kept ? '<h4 style="color:var(--muted)">= Sin cambios</h4><ul>'+kept+'</ul>' : ''}
+  `;
 }
 
 // Router simple
