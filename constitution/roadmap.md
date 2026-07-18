@@ -55,10 +55,11 @@
 - [x] .gitignore completo (binarios, DB, WAL/SHM, IDE, OS)
 - [x] Build/vet/tests OK
 
-## Fase 10: API Auth ⏳
-- [ ] Token bearer para endpoints `/api/*`
-- [ ] Flag `--api-token` en serve
-- [ ] Middleware auth en routes API
+## Fase 10: API Auth ✅
+- [x] Token bearer para endpoints `/api/*`
+- [x] Flag `--api-token` en serve
+- [x] Middleware auth en routes API
+- [x] Tests: TestAPIAuthRequired, TestAPIAuthDisabled
 
 ## Fase 11: Logging estructurado ⏳
 - [ ] Reemplazar fmt.Printf por slog (niveles: info/warn/error)
