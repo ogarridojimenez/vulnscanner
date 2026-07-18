@@ -50,11 +50,10 @@
 - [x] Logout invalida sesión
 - [x] Sin password = modo abierto (retrocompatible)
 
-## Fase 9: Fix bugs críticos ⏳
-- [ ] Fix target alcanzable (testphp.vulnweb.com timeout → usar targets locales o propios)
-- [ ] Graceful shutdown en server (limpiar goroutines al cerrar)
-- [ ] .gitignore completo (binarios, DB, artefactos, WAL/SHM)
-- [ ] Fix Summary vacío en API (ya corregido en dfd3e03, verificar)
+## Fase 9: Fix bugs críticos ✅
+- [x] Graceful shutdown en server (signal handling + http.Server.Shutdown)
+- [x] .gitignore completo (binarios, DB, WAL/SHM, IDE, OS)
+- [x] Build/vet/tests OK
 
 ## Fase 10: API Auth ⏳
 - [ ] Token bearer para endpoints `/api/*`
