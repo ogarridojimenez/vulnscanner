@@ -99,10 +99,10 @@
 
 | # | Feature | Estado | Complejidad |
 |---|---------|--------|-------------|
-| 017 | Rate Limiting API | spec ✅ | Baja |
-| 018 | WebSocket Real-time | spec ✅ | Media |
-| 019 | Docker/Dockerfile | spec ✅ | Baja |
-| 020 | CI/CD GitHub Actions | spec ✅ | Baja |
-| 021 | JWT Authentication | spec ✅ | Media |
-| 022 | Dashboard Stats Charts | spec ✅ | Media |
-| 023 | OAuth/LDAP Login | spec ✅ | Alta |
+| 017 | Rate Limiting API | ✅ Completado | Baja |
+| 018 | WebSocket real-time updates | ✅ Completado | Media |
+| 019 | Docker/Dockerfile | ✅ Completado | Baja |
+| 020 | CI/CD GitHub Actions | ✅ Completado | Baja |
+| 021 | JWT Auth | ✅ Completado | Media |
+| 022 | Dashboard stats charts | ✅ Completado | Media |
+| 023 | OAuth/LDAP login | ✅ Completado | Alta |
