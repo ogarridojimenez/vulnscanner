@@ -1,162 +1,166 @@
 # VulnScanner 🔍
 
-> Escáner de vulnerabilidades web desde terminal, construido en Go.
+Escáner de vulnerabilidades web con CLI, API REST y dashboard visual.
 
-`vulnscan` es una herramienta CLI que audita targets web en busca de vulnerabilidades comunes: puertos abiertos, cabeceras de seguridad faltantes, problemas TLS/SSL, directorios ocultos y detección básica de SQLi/XSS.
+## Features
 
-Inspirado en `nmap` + `nuclei`, pero con un solo binario CGO-free, cero dependencias externas en runtime.
-
----
+- **10 módulos de detección**: Headers, TLS, puertos, XSS, SQLi, SSRF, LFI/RFI, open redirect, tech detection, subdomain enum
+- **Escaneo autónomo y autenticado** (form-based, JSON token)
+- **Web UI** con dashboard, filtros, paginación, charts, comparación de escaneos
+- **API REST** con auth (Bearer token / JWT / LDAP)
+- **Reportes**: JSON, HTML (donut SVG), SARIF 2.1.0, Markdown, PDF
+- **Scheduler** de escaneos periódicos
+- **Notificaciones**: Slack, Discord, Email
+- **WebSocket** para updates en tiempo real
+- **Docker** multi-stage (alpine, ~15MB)
+- **CI/CD** GitHub Actions
 
 ## Instalación
 
+### Go
 ```bash
-# Desde release
-curl -LO https://github.com/ogarridojimenez/vulnscanner/releases/latest/download/vulnscan_linux_amd64
-chmod +x vulnscan_linux_amd64 && sudo mv vulnscan_linux_amd64 /usr/local/bin/vulnscan
-
-# O compilar desde fuente
-git clone https://github.com/ogarridojimenez/vulnscanner.git
-cd vulnscanner && go build -o vulnscan ./cmd/vulnscanner/
+go install github.com/ogarridojimenez/vulnscanner/cmd/vulnscanner@latest
 ```
 
-## Uso
+### Docker
+```bash
+docker compose up -d
+# Web UI: http://localhost:8080
+```
 
+### Build local
+```bash
+go build -o vulnscan ./cmd/vulnscanner
+```
+
+## Uso rápido
+
+### CLI
 ```bash
 # Escaneo básico
-vulnscan scan example.com
+vulnscan scan --target https://ejemplo.com
 
-# Escaneo completo (todos los módulos)
-vulnscan scan example.com --full
+# Full scan con reporte
+vulnscan scan --target https://ejemplo.com --full --report results.json
 
-# Escaneo con workers y puertos específicos
-vulnscan scan example.com --ports 80,443,8080,8443 --workers 20
+# Multi-target
+vulnscan scan --targets-file targets.txt --report scan.json
 
-# Escaneo con módulos específicos
-vulnscan scan example.com --modules ssrf,lfi,redirect,cookies,tech,subdomain --workers 10
-
-# Escaneo autenticado
-vulnscan scan example.com --auth-login-url https://app.com/login --auth-user admin --auth-pass secret
-
-# Reportes: json, pdf, html, sarif, md
-vulnscan scan example.com --full --format html -o report.html
-vulnscan scan example.com --full --format sarif -o report.sarif.json
-vulnscan scan example.com --full --format md -o report.md
-
-# Configuración avanzada desde archivo
-vulnscan scan example.com --config config.yaml
-
-# Escaneo multi-target desde archivo (uno por línea)
-vulnscan scan example.com --targets-file targets.txt --modules headers,ssrf
-
-# Servidor API (Producer-ready)
-vulnscan serve --addr :8080 --db scans.db --ui-password "mi_clave_secreta"
-```
-> El panel web (`/`, `/dashboard`, `/scan/new`, `/scan/:id`) queda protegido con
-> login por contraseña. La API REST (`/api/*`) permanece abierta por diseño.
-
-# Gestión de base de datos
-vulnscan db init
-vulnscan db check
+# Con auth
+vulnscan scan --target https://ejemplo.com --auth-user admin --auth-pass secret
 ```
 
-## Módulos
+### API Server
+```bash
+# Iniciar servidor
+vulnscan serve --addr :8080 --api-token mytoken
 
-| Módulo | Descripción | Severidad típica |
-|--------|-------------|-----------------|
-| **Port Scan** | Escaneo TCP concurrente con detección de servicios (25+ puertos comunes) | INFO |
-| **Security Headers** | Verifica 12 cabeceras OWASP (HSTS, CSP, XFO, etc.) | MEDIUM si faltan |
-| **TLS Check** | Versión TLS, cifrado, caducidad, cadena de certificados | HIGH si expirado |
-| **SQLi Detection** | 13 payloads, detección por reflexión | HIGH si reflejado |
-| **XSS Detection** | 11 payloads, detección por reflexión | HIGH si reflejado |
-| **SSRF Detection** | 8 payloads, metadata cloud + blind | CRITICAL si metadata |
-| **LFI/RFI** | 8 payloads, etc/passwd + RFI | HIGH si LFI |
-| **Open Redirect** | 6 payloads, Location externo | MEDIUM |
-| **Cookie Audit** | Flags Secure/HttpOnly/SameSite | MEDIUM si falta |
-| **Tech Detection** | goquery + headers (Wappalyzer-like) | INFO |
-| **Subdomain Enum** | Resolución DNS concurrente (20 workers) | INFO |
+# Escanear via API
+curl -X POST http://localhost:8080/api/scan \
+  -H "Authorization: Bearer mytoken" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"https://ejemplo.com","modules":["headers","tls"]}'
 
-## Flags globales
+# Ver escaneos
+curl -H "Authorization: Bearer mytoken" http://localhost:8080/api/scans
+```
 
-| Flag | Default | Descripción |
-|------|---------|-------------|
-| `--workers` / `-w` | 10 | Workers concurrentes |
-| `--timeout` | 5s | Timeout por petición |
-| `--cookie` | — | Cookie para escaneos autenticados |
-| `--modules` | — | Lista de módulos (ssrf,lfi,redirect,cookies,tech,subdomain) |
-| `--auth-login-url` | — | URL de login para escaneo autenticado |
-| `--auth-user` / `--auth-pass` | — | Credenciales de login |
-| `--auth-token-field` | — | Campo JSON del token en respuesta de login |
-| `--format` | json | json, pdf, html, sarif, md |
-| `--config` | — | Archivo YAML/TOML de configuración |
-| `--targets-file` | — | Archivo con targets (uno por línea) |
-| `--db` | `~/.vulnscanner/history.db` | Ruta a base de datos |
-| `-v` / `--verbose` | false | Salida detallada |
+### Web UI
+```bash
+# Con protección por password
+vulnscan serve --ui-password secreto
+# Abrir http://localhost:8080
+```
 
-## Servidor API (Producer-ready)
+## Flags principales
 
-`vulnscan serve` levanta un servidor Gin con:
-- `GET /` — **Landing page** (explicación de la app)
-- `GET /dashboard` — listado de escaneos (UI web)
-- `GET /scan/new` — formulario de nuevo escaneo (UI web)
-- `GET /scan/:id` — detalle de un escaneo (UI web)
-- `GET /health` — healthcheck
-- `POST /api/scan` — encola escaneo async (body: `{"target","modules","workers","format"}`)
-- `GET /api/scans` — lista de escaneos completados
-- `GET /api/scans/:id` — detalle de un escaneo
-
-La UI web está embebida en el binario (sin assets externos).
-Notificaciones (Slack/Discord webhook) configurables en scheduler.
+| Flag | Descripción |
+|------|-------------|
+| `--target` | URL o host a escanear |
+| `--targets-file` | Archivo con un target por línea |
+| `--full` | Ejecuta todos los módulos |
+| `--report` | Ruta del reporte JSON |
+| `--addr` | Dirección del servidor (default `:8080`) |
+| `--api-token` | Token Bearer para API |
+| `--jwt-secret` | Secret JWT (habilita auth JWT) |
+| `--ldap-url` | URL del servidor LDAP |
+| `--ui-password` | Password para Web UI |
+| `--rate-limit` | Max req/min por IP |
+| `--log-level` | debug, info, warn, error |
 
 ## Arquitectura
 
 ```
-cmd/vulnscanner/       → CLI (Cobra)
-internal/config/       → Configuración y defaults
-internal/models/       → Dominio (Target, Result, ScanReport)
-internal/scanner/      → 12 módulos de escaneo con worker pool + rate-limit + proxy
-internal/reporter/     → JSON, PDF, HTML, SARIF, Markdown
-internal/auth/         → Login automático + sesión (Feature 003)
-internal/config/       → Configuración YAML/TOML + rate-limit + proxy
-internal/server/       → API Gin (serve) — Producer-ready (Feature 005)
-internal/scheduler/    → Scheduler de escaneos periódicos (Feature 005)
-internal/notifier/     → Notificaciones Slack/Discord/Email (Feature 005)
-internal/storage/      → SQLite CGO-free
-rules/                 → Payloads SQLi/XSS/SSRF/LFI/redirect/subdomains
+cmd/vulnscanner/     → CLI (cobra)
+internal/
+  scanner/           → Motor de escaneo + módulos
+  server/            → Gin API + Web UI embebida
+  storage/           → SQLite (ncruces/go-sqlite3)
+  reporter/          → JSON, HTML, SARIF, Markdown, PDF
+  ratelimit/         → Token bucket rate limiter
+  jwtauth/           → JWT access+refresh tokens
+  ldapauth/          → LDAP authentication
+  ws/                → WebSocket hub
+  scheduler/         → Cron-based scan scheduling
+  notifier/          → Slack/Discord/Email
+  config/            → YAML/TOML config loader
 ```
 
-**Principios:**
-- ✅ Sin CGO — binario 100% portable
-- ✅ Concurrencia real con goroutines + worker pool fan-out
-- ✅ Arquitectura limpia con interfaces separadas
-- ✅ Almacenamiento local SQLite para historial
-- ✅ Reportes en JSON, PDF, HTML, SARIF, Markdown
-- ✅ API REST + scheduler + notificaciones (Producer-ready)
-- ✅ Tests con servidores mock httptest + benchmarks + fuzzing
-- ✅ Docker multi-stage
-- ✅ CI/CD con GitHub Actions
+## Auth
+
+| Método | Flags | Uso |
+|--------|-------|-----|
+| Bearer token | `--api-token` | `Authorization: Bearer <token>` |
+| JWT | `--jwt-secret` | Login → access+refresh tokens |
+| LDAP | `--ldap-url`, `--ldap-base-dn`, etc. | Login LDAP → JWT tokens |
+| UI password | `--ui-password` | Cookie HttpOnly |
+
+## Configuración
+
+```yaml
+# config.yaml
+target: https://ejemplo.com
+modules:
+  - headers
+  - tls
+  - xss
+workers: 10
+timeout: 30s
+```
+
+```bash
+vulnscan scan --config config.yaml
+```
+
+## Módulos de detección
+
+| Módulo | Qué detecta |
+|--------|-------------|
+| `headers` | Headers de seguridad (CSP, HSTS, X-Frame, etc.) |
+| `tls` | Certificados, versiones TLS, cipher suites |
+| `ports` | Puertos abiertos (TCP common) |
+| `xss` | Cross-Site Scripting básico |
+| `sqli` | SQL Injection básico |
+| `ssrf` | Server-Side Request Forgery |
+| `lfi` | Local/Remote File Inclusion |
+| `open_redirect` | Redirecciones abiertas |
+| `tech` | Detección de tecnologías (Wappalyzer-like) |
+| `subdomains` | Enumeración de subdominios |
+
+## Docker
+
+```bash
+docker compose up -d
+```
+
+El volumen `vulnscan-data` persiste la base de datos SQLite.
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`):
-- **Lint**: `go vet` + `gofmt` check
-- **Test**: matrix Go 1.23/1.24 con `-race`
-- **Build Release**: cross-compile en tags `v*` (linux/darwin/windows × amd64/arm64)
-- **Docker**: build de imagen en tags `v*`
+- **Test**: Go 1.21/1.22, vet, gofmt, tests
+- **Build**: Cross-compile (linux/amd64, linux/arm64, darwin/arm64, windows/amd64)
+- **Release**: Tag `v*` → GitHub Release con binarios
 
-## Stack
-
-| Componente | Librería |
-|------------|----------|
-| CLI Framework | `spf13/cobra` |
-| Output coloreado | `fatih/color` |
-| PDF Reports | `go-pdf/fpdf` |
-| Base de datos | `ncruces/go-sqlite3` (CGO-free) |
-
-## Licencia
+## License
 
 MIT
-
----
-
-📖 **Manual de usuario completo**: [`MANUAL.md`](MANUAL.md)
