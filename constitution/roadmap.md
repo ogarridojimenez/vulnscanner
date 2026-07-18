@@ -61,10 +61,11 @@
 - [x] Middleware auth en routes API
 - [x] Tests: TestAPIAuthRequired, TestAPIAuthDisabled
 
-## Fase 11: Logging estructurado ⏳
-- [ ] Reemplazar fmt.Printf por slog (niveles: info/warn/error)
-- [ ] Request logging middleware en server
-- [ ] Log de findings por scan
+## Fase 11: Logging estructurado ✅
+- [x] Reemplazar fmt.Printf por slog (niveles: info/warn/error)
+- [x] Request logging middleware en server
+- [x] Log de findings por scan
+- [x] Flag --log-level en serve
 
 ## Fase 12: Health checks + métricas ⏳
 - [ ] GET /health detallado (DB status, uptime, memory)
